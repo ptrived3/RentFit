@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container profile-container">
+    <!-- Profile Header -->
+    <div class="row">
+        <div class="col-md-4 text-center">
+            <h2>{{ user.username }}'s Profile</h2>
+        </div>
+        {% if user.id != current_user.id %}
+            <div class="col-md-8 justify-content-center">
+                <form action="{{ url_for('follow', user_id=user.id) if not is_following else url_for('unfollow', user_id=user.id) }}" method="POST">
+                    <button type="submit" class="btn btn-{{ 'danger' if is_following else 'success' }}">
+                        {{ 'Unfollow' if is_following else 'Follow' }}
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Profile Details -->
+    <div class="row mb-3">
+        <!-- Profile Picture -->
+        <div class="col-md-4 text-center">
+            <img src="{{ url_for('static', filename=user.profile_pic or 'images/default.png') }}"
+                 alt="Profile Picture" class="rounded-circle img-fluid" style="max-width: 150px;">
+        </div>
+
+        <!-- Profile Information -->
+        <div class="col-md-8">
+            <div class="row mb-3">
+                <label class="col-3 col-form-label">Username:</label>
+                <div class="col-9">
+                    <p class="form-control-plaintext">{{ user.username }}</p>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <label class="col-3 col-form-label">Email:</label>
+                <div class="col-9">
+                    <p class="form-control-plaintext">{{ user.email }}</p>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <label class="col-3 col-form-label">Bio:</label>
+                <div class="col-9">
+                    <p class="form-control-plaintext">{{ user.bio or 'No bio available.' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="row mt-4">
+        <div class="col-4"></div>
+        <div class="col-7">
+            <a href="{{ url_for('user_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

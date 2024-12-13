@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Welcome {{ current_user.username }}!</h1>
+
+<!-- Search and Follow Users -->
+<div class="my-4">
+    {% if search_results %}
+    <h4>Search Results</h4>
+    <ul class="list-group">
+        {% for user in search_results %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ user.username }}
+            {% if user.is_following %}
+            <form action="{{ url_for('unfollow', user_id=user.id) }}" method="POST">
+                <button type="submit" class="btn btn-danger btn-sm">Unfollow</button>
+            </form>
+            {% else %}
+            <form action="{{ url_for('follow', user_id=user.id) }}" method="POST">
+                <button type="submit" class="btn btn-success btn-sm">Follow</button>
+            </form>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+
+<!-- Post Creation Form -->
+<div class="card my-4">
+    <div class="card-body">
+        <h5 class="card-title">Create a Post</h5>
+        <form action="{{ url_for('create_post') }}" method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <textarea class="form-control" name="text" placeholder="What's on your mind?" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+                <input type="file" class="form-control" name="image" accept="image/*">
+            </div>
+            <button type="submit" class="btn btn-primary">Post</button>
+        </form>
+    </div>
+</div>
+
+<!-- User Feed -->
+<h3>Network Updates</h3>
+{% for post in posts %}
+<div class="card my-3 feed-card">
+    <div class="card-body">
+        <h5 class="card-title">
+            Posted by {{ post.user.username }}
+            <small class="text-muted">{{ post.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
+        </h5>
+        <p class="card-text">{{ post.text }}</p>
+        {% if post.image_data %}
+        <img src="data:{{ post.image_mime_type }};base64,{{ post.image_data | b64encode }}"
+             class="img-fluid" alt="Post Image">
+        {% endif %}
+        <div class="mt-2">
+            {% if post.is_liked_by(current_user) %}
+            <button class="btn btn-sm btn-secondary unlike-button" data-post-id="{{ post.id }}">Unlike</button>
+            <button class="btn btn-sm btn-primary like-button" data-post-id="{{ post.id }}" style="display: none;">Like</button>
+            {% else %}
+            <button class="btn btn-sm btn-primary like-button" data-post-id="{{ post.id }}">Like</button>
+            <button class="btn btn-sm btn-secondary unlike-button" data-post-id="{{ post.id }}" style="display: none;">Unlike</button>
+            {% endif %}
+            <span class="ms-2 like-count" data-post-id="{{ post.id }}">{{ post.likes | length }} Likes</span>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+
+<script>
+    document.addEventListener('click', async (event) => {
+        const likeButton = event.target.closest('.like-button');
+        const unlikeButton = event.target.closest('.unlike-button');
+
+        if (likeButton) {
+            const postId = likeButton.getAttribute('data-post-id');
+            try {
+                const response = await fetch(`/like/${postId}`, { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    likeButton.style.display = 'none';
+                    const unlikeButton = document.querySelector(`.unlike-button[data-post-id="${postId}"]`);
+                    if (unlikeButton) unlikeButton.style.display = 'inline-block';
+
+                    const likeCount = document.querySelector(`.like-count[data-post-id="${postId}"]`);
+                    if (likeCount) {
+                        const currentCount = parseInt(likeCount.textContent) || 0;
+                        likeCount.textContent = `${currentCount + 1} Likes`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error liking post:', error);
+            }
+        }
+
+        if (unlikeButton) {
+            const postId = unlikeButton.getAttribute('data-post-id');
+            try {
+                const response = await fetch(`/unlike/${postId}`, { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    unlikeButton.style.display = 'none';
+                    const likeButton = document.querySelector(`.like-button[data-post-id="${postId}"]`);
+                    if (likeButton) likeButton.style.display = 'inline-block';
+
+                    const likeCount = document.querySelector(`.like-count[data-post-id="${postId}"]`);
+                    if (likeCount) {
+                        const currentCount = parseInt(likeCount.textContent) || 0;
+                        likeCount.textContent = `${currentCount - 1} Likes`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error unliking post:', error);
+            }
+        }
+    });
+</script>
+
+
+{% endblock %}

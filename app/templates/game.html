@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Tic-Tac-Toe</h2>
+<p><strong>{{ game.player1.username }}</strong> (X) vs <strong>{{ game.player2.username or 'Waiting for opponent' }}</strong> (O)</p>
+
+{% if game.status == 'ongoing' and game.current_turn is defined %}
+    <p>Current Turn: {{ 'You' if current_user.id == game.current_turn else (game.player1.username if game.current_turn == game.player1_id else game.player2.username) }}</p>
+{% elif game.status == 'completed' %}
+    <p><strong>Winner:</strong> {{ game.winner.username if game.winner else 'Draw' }}</p>
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-start" >
+    <!-- Game Board -->
+    <div class="board-container">
+        <div class="board">
+            {% for i in range(3) %}
+            <div class="board-row">
+                {% for j in range(3) %}
+                {% set position = 3 * i + j %}
+                <div class="cell">
+                    {% if game.board_state[position] == ' ' and game.status == 'ongoing' and current_user.id == game.current_turn %}
+                    <button
+                        type="button"
+                        class="btn btn-light w-100 h-100 make-move"
+                        data-position="{{ position }}">
+                        {{ game.board_state[position] }}
+                    </button>
+                    {% else %}
+                    <span>{{ game.board_state[position] }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Search and Invite Users -->
+    <div class="search-container ms-4">
+        {% if game.status == 'waiting' %}
+            <h4>Search and Invite Players</h4>
+            <form id="game-search-form" class="d-flex mb-3" method="GET" action="{{ url_for('search_game_users') }}">
+                <input type="text" id="game-search-query" class="form-control me-2" placeholder="Search for players..." />
+                <input type="hidden" id="game-id" value="{{ game.id }}" />
+                <button type="submit" class="btn btn-outline-success">Search</button>
+            </form>
+            <ul id="game-search-results" class="list-group"></ul>
+        {% endif %}
+    </div>
+</div>
+
+<a href="{{ url_for('games') }}" class="btn btn-primary mt-4">Games Board</a>
+<a href="{{ url_for('user_dashboard') }}" class="btn btn-secondary mt-4">Back to Dashboard</a>
+
+
+
+
+<script>
+  // Check if the element exists before adding the event listener
+  const searchForm = document.getElementById('game-search-form');
+
+  if (searchForm) {
+      document.getElementById('game-search-form').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const query = document.getElementById('game-search-query').value.trim();
+        const gameId = document.getElementById('game-id').value; // Fetch the hidden input value
+
+        console.log(`query: ${query}, game: ${gameId}`); // Corrected debug log
+
+        if (query) {
+            try {
+                console.log(`Searching for: ${query}, Game ID: ${gameId}`); // Debug log
+                const response = await fetch(`/search_game_users?query=${encodeURIComponent(query)}&game_id=${gameId}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                const results = await response.json();
+                console.log('Search results:', results); // Debug log
+
+                const resultsList = document.getElementById('game-search-results');
+                resultsList.innerHTML = ''; // Clear previous results
+
+                results.forEach(user => {
+                    console.log(`Adding user: ${user.username}`); // Debug log
+                    const listItem = document.createElement('li');
+                    listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    listItem.innerHTML = `
+                        ${user.username}
+                        <button class="btn btn-success btn-sm invite-button" data-user-id="${user.id}" data-game-id="${gameId}">
+                            Invite
+                        </button>
+                    `;
+                    resultsList.appendChild(listItem);
+                });
+
+                // Debug log to confirm the results are displayed
+                console.log('Results added to DOM:', resultsList.innerHTML);
+            } catch (error) {
+                console.error('Error fetching search results:', error);
+            }
+        }
+    });
+  }
+
+  const gameSearchResults = document.getElementById('game-search-results')
+  if (gameSearchResults) {
+    document.getElementById('game-search-results').addEventListener('click', async (event) => {
+        const button = event.target.closest('.invite-button');
+        if (button) {
+            const userId = button.getAttribute('data-user-id');
+            const gameId = button.getAttribute('data-game-id');
+
+            try {
+                console.log(`Inviting user ${userId} to game ${gameId}`); // Debug log
+                const response = await fetch(`/invite/${userId}/${gameId}`, { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    //alert(result.message);
+                    // Clear the search results
+                    document.getElementById('game-search-results').innerHTML = '';
+                    const searchForm = document.getElementById('game-search-form');
+                    searchForm.style.display = 'none'; // Hide the form
+
+                    button.textContent = 'Invited';
+                    button.disabled = true;
+                    location.reload();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error inviting player:', error);
+            }
+        }
+    });
+  }
+
+</script>
+
+<!-- Handle player move and update game board -->
+<script>
+    const gameId = {{ game.id }};
+    document.querySelectorAll('.make-move').forEach(button => {
+        button.addEventListener('click', async (event) => {
+            const position = event.target.dataset.position;
+
+            console.log("position:" + position);
+            try {
+                const response = await fetch(`/game/${gameId}/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json', // Ensure this is set correctly
+                    },
+                    body: JSON.stringify({ position: parseInt(position, 10) }), // Ensure this is a valid JSON object
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateBoard(data.board_state);
+                    if (data.status === 'ongoing') {
+                        updateTurn(data.current_turn);
+                    }
+                    if (data.status === 'completed') {
+                        showWinner(data.winner);
+                    }
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('Error making move:', error);
+            }
+        });
+    });
+
+    function attachMoveEventHandlers() {
+        console.log("attachMoveEventHandlers() called");
+        document.querySelectorAll('.make-move').forEach(button => {
+            // Remove existing listeners to avoid duplicate bindings
+            button.removeEventListener('click', handleMove);
+
+            // Attach the click event listener
+            button.addEventListener('click', handleMove);
+        });
+
+        async function handleMove(event) {
+            const position = event.target.dataset.position;
+            console.log("Move position:", position);
+
+            try {
+                const response = await fetch(`/game/${gameId}/move`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ position: parseInt(position, 10) }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    updateBoard(data.board_state); // Update the board dynamically
+                    if (data.status === 'ongoing') {
+                        updateTurn(data.current_turn); // Update the turn indicator
+                    }
+                    if (data.status === 'completed') {
+                        showWinner(data.winner); // Handle game completion
+                    }
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error('Error making move:', error);
+            }
+        }
+    }
+
+    // Polling interval in milliseconds
+    const POLLING_INTERVAL = 2000;
+
+    let previousStatus = '{{ game.status }}'; // Store the initial status
+    let previousTurn = '{{ game.current_turn }}';
+    let gameFlag = `hasReloaded_${gameId}`;
+    let hasReloaded = sessionStorage.getItem(gameFlag) === 'true';
+
+    async function fetchGameState() {
+        try {
+            const response = await fetch(`/game/{{ game.id }}/state`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch game state');
+            }
+            const data = await response.json();
+
+            // Check if the game status has changed
+            if (data.status !== previousStatus) {
+                previousStatus = data.status;
+
+                if (data.status === 'ongoing') {
+                    alert('The game has started!');
+                    location.reload(); // Reload the page to fetch the latest state
+                }
+            }
+
+            let x_count = (data.board_state.match(/X/g) || []).length;
+            let o_count = (data.board_state.match(/O/g) || []).length;
+            if (data.status === 'ongoing' && x_count === 1 && o_count === 0) {
+                 if ({{ current_user.id }} === data.current_turn && !hasReloaded) {
+                    sessionStorage.setItem(gameFlag, 'true');
+                    location.reload();
+                 }
+            }
+
+            // Update the board
+            updateBoard(data.board_state);
+
+            // Update the turn indicator
+            if (data.current_turn) {
+                updateTurn(data.current_turn);
+            }
+
+            // If the game is completed, display the winner
+            if (data.status === 'completed') {
+                //removeTurnIndicator(); // Remove the turn indicator
+                showWinner(data.winner);
+                clearInterval(polling); // Stop polling after game completion
+            }
+        } catch (error) {
+            console.error('Error fetching game state:', error);
+        }
+    }
+
+    function updateBoard(boardState) {
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach((cell, index) => {
+            const button = cell.querySelector('button');
+            const span = cell.querySelector('span');
+            if (boardState[index] !== ' ') {
+                if (button) button.remove();
+                if (!span) {
+                    const newSpan = document.createElement('span');
+                    newSpan.textContent = boardState[index];
+                    // Add class based on the value (X or O)
+                    newSpan.classList.add(boardState[index] === 'X' ? 'x' : 'o');
+                    cell.appendChild(newSpan);
+                } else {
+                    span.textContent = boardState[index];
+                    // Update class based on the value (X or O)
+                    span.className = boardState[index] === 'X' ? 'x' : 'o';
+                }
+            }
+        });
+    }
+
+    function updateTurn(currentTurn) {
+        const turnElement = document.querySelector('p:nth-of-type(2)');
+        const username = currentTurn === {{ game.player1_id }} ? '{{ game.player1.username }}' : '{{ game.player2.username }}';
+        turnElement.textContent = `Current Turn: ${currentTurn === {{ current_user.id }} ? 'You' : username}`;
+    }
+
+    function removeTurnIndicator() {
+        const turnElement = document.querySelector('p:nth-of-type(2)'); // Assuming the "Current Turn" text has an ID
+        if (turnElement) {
+            turnElement.remove();
+        }
+}
+    function showWinner(winner) {
+        //const winnerElement = document.createElement('p');
+        //winnerElement.innerHTML = `<strong>Winner:</strong> ${winner ? winner.username : 'Draw'}`;
+        //document.querySelector('.board').insertAdjacentElement('afterend', winnerElement);
+
+        const board = document.querySelector('.board'); // Select the board element
+        const winnerElement = document.createElement('p'); // Create a new paragraph for the winner
+        winnerElement.innerHTML = `<strong>Winner:</strong> ${winner ? winner.username : 'Draw'}`;
+        winnerElement.classList.add('winner-text'); // Optionally add a class for styling
+
+        // Insert the winner element at the top of the board
+        board.insertAdjacentElement('beforebegin', winnerElement);
+    }
+
+
+    // Start polling
+    const polling = setInterval(fetchGameState, POLLING_INTERVAL);
+
+    // Fetch game state immediately on load
+    fetchGameState();
+
+
+</script>
+
+
+{% endblock %}

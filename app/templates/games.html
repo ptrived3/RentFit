@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2 class="my-4">Games Board</h2>
+
+    <!-- Tabs Navigation -->
+    <ul class="nav nav-tabs" id="games-tabs" role="tablist">
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="active-games-tab" data-bs-toggle="tab" data-bs-target="#active-games"
+                    type="button" role="tab" aria-controls="active-games" aria-selected="true">Active Games
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="create-game-tab" data-bs-toggle="tab" data-bs-target="#create-game"
+                    type="button" role="tab" aria-controls="create-game" aria-selected="false">Create Game
+            </button>
+        </li>
+
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="leaderboard-tab" data-bs-toggle="tab" data-bs-target="#leaderboard"
+                    type="button" role="tab" aria-controls="leaderboard" aria-selected="false">Leader Board
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tabs Content -->
+    <div class="tab-content" id="games-tabs-content">
+        <!-- Active Games Tab -->
+        <div class="tab-pane fade show active" id="active-games" role="tabpanel" aria-labelledby="active-games-tab">
+            <h3 class="mt-4">Active Games</h3>
+            <ul class="list-group">
+                {% for game in active_games %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('view_game', game_id=game.id) }}">
+                        {% if game.status == 'waiting' %}
+                            Game {{ game.id }} with {{ 'Pending Opponent' }}
+                        {% else %}
+                            Game {{ game.id }} {{ game.player1.username }} Vs {{ game.player2.username }}
+                        {% endif %}
+                    </a>
+                    <span class="badge bg-info fixed-width-badge">{{ game.status }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <!-- Create Game Tab -->
+        <div class="tab-pane fade" id="create-game" role="tabpanel" aria-labelledby="create-game-tab">
+            <div class="d-flex align-items-center mt-3">
+                <h5 class="mb-0">Create a New Game: </h5>
+                <button class="btn btn-primary ms-2"  id="create-game-btn">Create Game</button>
+            </div>
+            <div id="new-game-content" class="mt-4">
+                <!-- Game content will be dynamically loaded here -->
+            </div>
+            <input type="hidden" id="game-id" value=""/>
+        </div>
+        <!-- Leader Board Tab -->
+        <div class="tab-pane fade" id="leaderboard" role="tabpanel" aria-labelledby="leaderboard-tab">
+            <ul class="list-group" id="leaderboard-list">
+                <!-- Leaderboard content will load dynamically -->
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('create-game-btn').addEventListener('click', async function () {
+    try {
+        const response = await fetch('{{ url_for("create_game") }}', { method: 'POST' });
+
+        if (response.ok) {
+            const result = await response.json(); // Parse the JSON response
+            console.log("Response from create_game:", result);
+
+            // Redirect to the Active Games tab
+            const activeGamesTab = document.getElementById('active-games-tab');
+            if (activeGamesTab) {
+                activeGamesTab.click(); // Simulates a click to switch to the Active Games tab
+            }
+
+            // Show an alert to indicate the game has been created
+            //alert('Game created successfully! Check it under Active Games.');
+            window.location.reload(); // Reload the page
+        } else {
+            console.error('Error creating game:', await response.text());
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+});
+
+
+    // Handle Leader Board Loading
+    document.getElementById('leaderboard-tab').addEventListener('click', async function () {
+        try {
+            const response = await fetch('{{ url_for("leaderboard") }}');
+            const data = await response.text();
+
+            document.getElementById('leaderboard-list').innerHTML = data;
+        } catch (error) {
+            console.error('Error loading leaderboard:', error);
+        }
+    });
+
+    function initializeSearchAndInvite() {
+    // Handle Search Form Submission
+    const searchForm = document.getElementById('game-search-form');
+    if (searchForm) {
+        searchForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const query = document.getElementById('game-search-query').value.trim();
+            const gameId = document.getElementById('game-id').value;
+
+            console.log(`query: ${query}, game: ${gameId}`);
+
+            if (query) {
+                try {
+                    console.log(`Searching for: ${query}, Game ID: ${gameId}`);
+                    const response = await fetch(`/search_game_users?query=${encodeURIComponent(query)}&game_id=${gameId}`);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                    const results = await response.json();
+                    console.log('Search results:', results);
+
+                    const resultsList = document.getElementById('game-search-results');
+                    resultsList.innerHTML = ''; // Clear previous results
+
+                    results.forEach(user => {
+                        console.log(`Adding user: ${user.username}`);
+                        const listItem = document.createElement('li');
+                        listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+                        listItem.innerHTML = `
+                            ${user.username}
+                            <button class="btn btn-success btn-sm invite-button" data-user-id="${user.id}" data-game-id="${gameId}">
+                                Invite
+                            </button>
+                        `;
+                        resultsList.appendChild(listItem);
+                    });
+
+                    console.log('Results added to DOM:', resultsList.innerHTML);
+                } catch (error) {
+                    console.error('Error fetching search results:', error);
+                }
+            }
+        });
+    }
+
+    // Handle Invite Button Clicks
+    const resultsList = document.getElementById('game-search-results');
+    if (resultsList) {
+        resultsList.addEventListener('click', async (event) => {
+            const button = event.target.closest('.invite-button');
+            if (button) {
+                const userId = button.getAttribute('data-user-id');
+                const gameId = button.getAttribute('data-game-id');
+
+                try {
+                    console.log(`Inviting user ${userId} to game ${gameId}`);
+                    const response = await fetch(`/invite/${userId}/${gameId}`, { method: 'POST' });
+                    const result = await response.json();
+                    if (result.success) {
+                        alert(result.message);
+                        button.textContent = 'Invited';
+                        button.disabled = true;
+                    } else {
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error('Error inviting player:', error);
+                }
+            }
+        });
+    }
+}
+
+
+
+</script>
+{% endblock %}

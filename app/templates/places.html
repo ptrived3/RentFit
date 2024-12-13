@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container my-5">
+    <h2 class="text-center">Search for Nearby Places</h2>
+
+    <!-- Autocomplete Search Input -->
+    <div class="input-group my-4">
+        <span class="input-group-text bg-primary text-white">
+            <i class="bi bi-geo-alt"></i>
+        </span>
+        <input id="autocomplete" type="text" class="form-control" placeholder="Enter an address">
+    </div>
+
+    <!-- Checkbox Filters -->
+    <div class="mb-4">
+        <label class="form-label fw-bold">Filter Places of Interest:</label>
+        <div class="d-flex flex-wrap gap-3">
+            <div class="form-check">
+                <input type="checkbox" id="filter-schools" value="school" class="form-check-input poi-filter">
+                <label for="filter-schools" class="form-check-label">
+                    <i class="bi bi-mortarboard-fill text-info"></i> Schools
+                </label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" id="filter-hotels" value="lodging" class="form-check-input poi-filter">
+                <label for="filter-hotels" class="form-check-label">
+                    <i class="bi bi-house-fill text-warning"></i> Hotels
+                </label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" id="filter-hospitals" value="hospital" class="form-check-input poi-filter">
+                <label for="filter-hospitals" class="form-check-label">
+                    <i class="bi bi-hospital-fill text-danger"></i> Hospitals
+                </label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" id="filter-tourist-attractions" value="tourist_attraction" class="form-check-input poi-filter">
+                <label for="filter-tourist-attractions" class="form-check-label">
+                    <i class="bi bi-camera-fill text-success"></i> Tourist Attractions
+                </label>
+            </div>
+            <div class="form-check">
+                <input type="checkbox" id="filter-software-companies" value="establishment" data-keyword="software" class="form-check-input poi-filter">
+                <label for="filter-software-companies" class="form-check-label">
+                    <i class="bi bi-pc-display-horizontal text-primary"></i> Software Companies
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map" style="height: 500px; width: 100%;" class="border rounded shadow-sm mb-4"></div>
+
+    <!-- Charts Grid -->
+    <div class="row g-4 my-4">
+        <!-- Place Count Chart -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Places Distribution</h5>
+                    <canvas id="placesChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ratings Distribution -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Ratings Distribution</h5>
+                    <canvas id="ratingsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Distance Analysis -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Distance Analysis</h5>
+                    <canvas id="distanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Price Level Distribution -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Price Level Distribution</h5>
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    let map;
+    let service;
+    let infowindow;
+    let selectedLocation;
+    let markers = [];
+    let placeCounts = {};
+    let charts = {};
+    let placeAnalytics = {
+        ratings: {},
+        distances: {},
+        priceLevels: {},
+        placeDetails: []
+    };
+
+    function initAutocomplete() {
+        const defaultLocation = { lat: 37.7749, lng: -122.4194 };
+        map = new google.maps.Map(document.getElementById("map"), {
+            center: defaultLocation,
+            zoom: 12,
+        });
+
+        infowindow = new google.maps.InfoWindow();
+
+        const autocompleteInput = document.getElementById("autocomplete");
+        const autocomplete = new google.maps.places.Autocomplete(autocompleteInput, {
+            types: ["geocode"],
+        });
+
+        autocomplete.addListener("place_changed", () => {
+            const place = autocomplete.getPlace();
+
+            if (place.geometry && place.geometry.location) {
+                selectedLocation = place.geometry.location;
+                map.setCenter(selectedLocation);
+                map.setZoom(14);
+
+                new google.maps.Marker({
+                    position: selectedLocation,
+                    map: map,
+                    title: place.formatted_address,
+                    icon: {
+                        url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+                    }
+                });
+
+                clearMarkers();
+                resetAnalytics();
+                fetchFilteredPlaces();
+            } else {
+                alert("No details available for the selected location.");
+            }
+        });
+
+        initializeCharts();
+    }
+
+    function initializeCharts() {
+        // Places Distribution Chart
+        charts.places = new Chart(document.getElementById('placesChart'), {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Number of Places',
+                    data: [],
+                    backgroundColor: ['#007bff', '#ffc107', '#28a745', '#dc3545', '#17a2b8'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    }
+                }
+            }
+        });
+
+        // Ratings Distribution Chart
+        charts.ratings = new Chart(document.getElementById('ratingsChart'), {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Rating Distribution',
+                    data: [],
+                    backgroundColor: function(context) {
+                        // Set a color based on the rating value or index (e.g., different shades of green)
+                        const rating = context.raw;
+                        if (rating >= 4) {
+                            return '#28a745'; // Green for higher ratings
+                        } else if (rating >= 3) {
+                            return '#ffc107'; // Yellow for medium ratings
+                        } else {
+                            return '#dc3545'; // Red for lower ratings
+                        }
+                    },
+                    borderColor: '#28a745',
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                indexAxis: 'y',
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Distance Analysis Chart
+        charts.distance = new Chart(document.getElementById('distanceChart'), {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Distance vs Rating',
+                    data: [],
+                    backgroundColor: '#dc3545'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Distance (miles)'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Rating'
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => {
+                                const placeDetails = context.raw.place;
+                                const { x, y } = context.raw;
+                                return `${placeDetails.name || 'Unknown'} : Distance ${x.toFixed(2)} miles, Rating ${y}`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Price Level Distribution Chart
+
+        charts.price = new Chart(document.getElementById('priceChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ['$', '$$', '$$$', '$$$$'],
+                datasets: [{
+                    data: [0, 0, 0, 0],
+                    backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545']
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+
+
+    function fetchFilteredPlaces() {
+        const selectedFilters = Array.from(document.querySelectorAll(".poi-filter:checked")).map(
+            checkbox => ({ type: checkbox.value, keyword: checkbox.dataset.keyword })
+        );
+
+        if (!selectedFilters.length) {
+            alert("Please select at least one type of place to display.");
+            return;
+        }
+
+        selectedFilters.forEach(filter => {
+            const request = {
+                location: selectedLocation,
+                radius: '1500',
+                type: filter.type,
+            };
+
+            if (filter.keyword) {
+                request.keyword = filter.keyword;
+            }
+
+            service = new google.maps.places.PlacesService(map);
+            service.nearbySearch(request, (results, status) => handleNearbySearchResults(results, status, filter.type));
+        });
+    }
+
+    function handleNearbySearchResults(results, status, type) {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+            placeCounts[type] = (placeCounts[type] || 0) + results.length;
+
+            results.forEach((place) => {
+                if (place.geometry && place.geometry.location) {
+                    // Calculate distance from selected location
+                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
+                        selectedLocation,
+                        place.geometry.location
+                    ) / 1000 * 0.621371; // Convert to miles
+
+                    // Store place details
+                    placeAnalytics.placeDetails.push({
+                        type: type,
+                        rating: place.rating || 0,
+                        distance: distance,
+                        priceLevel: place.price_level || 0,
+                        place: place
+                    });
+
+                    // Update analytics
+                    updateAnalytics(place, distance);
+
+                    const marker = new google.maps.Marker({
+                        map,
+                        position: place.geometry.location,
+                        title: place.name,
+                    });
+
+                    markers.push(marker);
+
+                    google.maps.event.addListener(marker, "click", () => {
+                        infowindow.setContent(
+                            `<div>
+                                <strong>${place.name}</strong><br>
+                                ${place.vicinity || ''}<br>
+                                Rating: ${place.rating || 'N/A'}<br>
+                                Distance: ${distance.toFixed(2)} miles
+                            </div>`
+                        );
+                        infowindow.open(map, marker);
+                    });
+                }
+            });
+
+            updateAllCharts();
+        }
+    }
+
+    function updateAnalytics(place, distance) {
+        // Update ratings distribution
+        const rating = Math.floor(place.rating || 0);
+        placeAnalytics.ratings[rating] = (placeAnalytics.ratings[rating] || 0) + 1;
+
+        // Update distance ranges
+        const distanceRange = Math.floor(distance);
+        placeAnalytics.distances[distanceRange] = (placeAnalytics.distances[distanceRange] || 0) + 1;
+
+        // Update price levels
+        const priceLevel = place.price_level || 0;
+        placeAnalytics.priceLevels[priceLevel] = (placeAnalytics.priceLevels[priceLevel] || 0) + 1;
+    }
+
+    function updateAllCharts() {
+        // Update Places Distribution Chart
+        charts.places.data.labels = Object.keys(placeCounts);
+        charts.places.data.datasets[0].data = Object.values(placeCounts);
+        charts.places.update();
+
+        // Update Ratings Distribution Chart
+        const ratingLabels = Object.keys(placeAnalytics.ratings).sort();
+        charts.ratings.data.labels = ratingLabels;
+        charts.ratings.data.datasets[0].data = ratingLabels.map(label => placeAnalytics.ratings[label]);
+        charts.ratings.update();
+
+        // Update Distance vs Rating Scatter Plot
+        charts.distance.data.datasets[0].data = placeAnalytics.placeDetails.map(detail => ({
+            x: detail.distance,
+            y: detail.rating,
+            place: detail.place
+
+        }));
+        charts.distance.update();
+
+        // Update Price Level Chart
+        charts.price.data.datasets[0].data = [
+            placeAnalytics.priceLevels[1] || 0,
+            placeAnalytics.priceLevels[2] || 0,
+            placeAnalytics.priceLevels[3] || 0,
+            placeAnalytics.priceLevels[4] || 0
+        ];
+        charts.price.update();
+    }
+
+    function clearMarkers() {
+        markers.forEach(marker => marker.setMap(null));
+        markers = [];
+    }
+
+    function resetAnalytics() {
+        placeCounts = {};
+        placeAnalytics = {
+            ratings: {},
+            distances: {},
+            priceLevels: {},
+            placeDetails: []
+        };
+        updateAllCharts();
+    }
+
+    document.addEventListener("change", (event) => {
+        if (event.target.classList.contains("poi-filter") && selectedLocation) {
+            clearMarkers();
+            resetAnalytics();
+            fetchFilteredPlaces();
+        }
+    });
+
+    document.addEventListener("DOMContentLoaded", initAutocomplete);
+</script>
+
+<script async defer
+    src="https://maps.googleapis.com/maps/api/js?key={{api_key}}&libraries=places,geometry" loading="async" >
+
+</script>
+{% endblock %}

@@ -1,0 +1,21 @@
+<div class="container my-5">
+    <h2 class="text-center mb-4" style="color: var(--text-color);">Leaderboard</h2>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Wins</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for rank, winner in enumerate(winners, start=1) %}
+            <tr>
+                <td>{{ rank }}</td>
+                <td>{{ winner[0] }}</td> <!-- Player's username -->
+                <td>{{ winner[1] }}</td> <!-- Number of wins -->
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

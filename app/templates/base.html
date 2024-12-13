@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>MySocial</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    </head>
+<body>
+    <!-- Navbar with Dark/Light Mode Toggle -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <!-- Search Form (Visible only if logged in) -->
+            {% if current_user.is_authenticated %}
+            <!--<a class="navbar-brand" href="{{ url_for('user_dashboard') }}">MySocial</a> -->
+            <a href="{{ url_for('user_dashboard') }}" class="text-decoration-none" style="text-align: center;">
+                <div class="d-flex flex-column align-items-center me-3">
+                    <img src="{{ url_for('static', filename=current_user.profile_pic or 'default.png') }}"
+                         alt="Profile Picture"
+                         title="{{ current_user.username }}"
+                         class="rounded-circle img-fluid"
+                         style="max-width: 50px;">
+                </div>
+            </a>
+
+            <div class="position-relative" style="width: 40%; max-width: 500px;">
+                <form class="d-flex" id="search-form">
+                    <div class="input-group">
+                        <input class="form-control" type="search" placeholder="Search users..." aria-label="Search"
+                               id="search-input">
+                        <button class="btn btn-outline-light" type="button" id="search-button">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Search results -->
+                <div id="search-results" class="dropdown-menu position-absolute"
+                     style="width: 100%; display: none; z-index: 1000;">
+                    <!-- Results will populate here -->
+                </div>
+        </div>
+
+        {% endif %}
+
+        <div class="navbar-nav ms-auto">
+            {% if current_user.is_authenticated %}
+            <a class="nav-link" href="{{ url_for('profile') }}">Profile</a>
+            <a class="nav-link" href="{{ url_for('places') }}">Places</a>
+            <a class="nav-link" href="{{ url_for('games') }}">Play</a>
+            <a class="nav-link" href="{{ url_for('logout') }}">Sign out</a>
+            {% endif %}
+            <!-- Help Nav Item -->
+            <a class="nav-link" id="help-nav" href="#" data-bs-toggle="modal" data-bs-target="#helpModal">Help</a>
+            <!-- Dark/Light Mode Toggle -->
+            <div class="nav-item">
+                <label class="theme-switch">
+                    <input type="checkbox" id="theme-toggle">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+        </div>
+        </div>
+    </nav>
+
+    <div class="container my-5">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+        {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="helpModalLabel">Need Help?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    {% if current_user.is_authenticated %}
+                    <p>Welcome <strong>{{current_user.username }}</strong> ! As a MySocial app user :</p>
+                    <li> You can post your story as text or image</li>
+                    <li> You can follow or unfollow others</li>
+                    <li> Create a gaming session to invite others to play</li>
+                    <li> Contact support at
+                        <a href="mailto:support@mysocial.com">support@mysocial.com</a></li>
+                    {% else %}
+                    <p>Welcome to MySocial! </p>
+                    <li>Please <a href="{{ url_for('login') }}">log in</a> to access personalized features</li>
+                    <li>Contact support at <a href="mailto:support@mysocial.com">support@mysocial.com</a>.</li>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+            // Set the time duration (in milliseconds) for the message to stay visible
+            setTimeout(function() {
+                var alertElements = document.querySelectorAll('.alert');
+                alertElements.forEach(function(alert) {
+                    alert.classList.remove('show');  // Hide the alert
+                    alert.classList.add('fade');     // Ensure it fades away
+                });
+            }, 2000);  // 2000 ms = 2 seconds
+
+            // Fancy Dark/Light Mode Toggle Logic
+            document.addEventListener('DOMContentLoaded', function () {
+                const themeToggleCheckbox = document.getElementById('theme-toggle');
+                const body = document.body;
+
+                // Load the saved theme
+                const savedTheme = localStorage.getItem('theme') || 'light-mode';
+                body.classList.add(savedTheme);
+                themeToggleCheckbox.checked = savedTheme === 'dark-mode';
+
+
+                // Toggle theme on checkbox change
+                themeToggleCheckbox.addEventListener('change', function () {
+                    const newTheme = themeToggleCheckbox.checked ? 'dark-mode' : 'light-mode';
+
+                    body.classList.remove('light-mode', 'dark-mode');
+                    body.classList.add(newTheme);
+
+                    // Save the new theme preference
+                    localStorage.setItem('theme', newTheme);
+                });
+
+                // Help Nav Item Click Logic
+                const helpNav = document.getElementById('help-nav');
+                const helpAlert = document.getElementById('help-alert');
+
+                helpNav.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    helpAlert.classList.remove('d-none'); // Show the help alert
+                });
+            });
+
+
+
+    </script>
+
+    <!-- Search functionality -->
+    <script>
+        const searchInput = document.getElementById('search-input');
+        const resultsDropdown = document.getElementById('search-results');
+
+        // Fetch results dynamically
+        searchInput.addEventListener('input', async function () {
+            const query = this.value;
+            console.log(query)
+            if (query.length > 0) {
+                try {
+                    const response = await fetch(`/search?query=${encodeURIComponent(query)}`);
+                    const results = await response.json();
+
+                    // Populate the results dropdown
+                    resultsDropdown.innerHTML = '';
+                    results.forEach(user => {
+                        const resultItem = document.createElement('div');
+                        resultItem.classList.add('dropdown-item', 'd-flex', 'justify-content-between', 'align-items-center');
+                        resultItem.innerHTML = `
+                            <span>${user.username}</span>
+                            <button class="btn btn-success btn-sm view-action" data-user-id="${user.id}"> View Profile </button>
+                            <button class="btn btn-${user.is_following ? 'danger' : 'success'} btn-sm follow-action"
+                                    data-user-id="${user.id}">
+                                ${user.is_following ? 'Unfollow' : 'Follow'}
+                            </button>
+                        `;
+                        resultsDropdown.appendChild(resultItem);
+                    });
+
+                    resultsDropdown.style.display = 'block'; // Show the dropdown
+                } catch (error) {
+                    console.error('Error fetching search results:', error);
+                }
+            } else {
+                resultsDropdown.innerHTML = '';
+                resultsDropdown.style.display = 'none'; // Hide the dropdown
+            }
+        });
+
+        // Handle view button clicks
+        resultsDropdown.addEventListener('click', async function (event) {
+            const button = event.target.closest('.view-action');
+            if (!button) {
+                console.log("No view-action button clicked");
+                return;
+            }
+
+            event.stopPropagation(); // Prevent the click from affecting parent elements
+            const userId = button.getAttribute('data-user-id');
+            console.log("Clicked button with user ID:", button.getAttribute('data-user-id'));
+
+            // Redirect the browser to the profile page
+            window.location.href = `/profile/${userId}`;
+        });
+
+        // Handle follow/unfollow button clicks
+        resultsDropdown.addEventListener('click', async function (event) {
+            const button = event.target.closest('.follow-action');
+            if (!button) return; // Exit if the clicked element is not a follow/unfollow button
+
+             event.stopPropagation(); // Prevent the click from affecting parent elements
+
+            const userId = button.getAttribute('data-user-id');
+            const isFollowing = button.classList.contains('btn-danger');
+            const action = isFollowing ? 'unfollow' : 'follow';
+
+            try {
+                const response = await fetch(`/${action}/${userId}`, { method: 'POST' });
+
+                if (response.ok) {
+                    // Update button appearance and text
+                    button.classList.toggle('btn-danger');
+                    button.classList.toggle('btn-success');
+                    button.textContent = isFollowing ? 'Follow' : 'Unfollow';
+                } else {
+                    console.error(`Failed to ${action} user:`, await response.text());
+                }
+            } catch (error) {
+                console.error(`Error trying to ${action} user:`, error);
+            }
+        });
+
+        // Hide results when focus is lost from search box
+        searchInput.addEventListener('blur', function () {
+            setTimeout(() => (resultsDropdown.style.display = 'none'), 200); // Delay to allow clicking on results
+        });
+
+        // Show results when focusing back on the input
+        searchInput.addEventListener('focus', function () {
+            if (resultsDropdown.children.length > 0) {
+                resultsDropdown.style.display = 'block';
+            }
+        });
+
+        // Show results when hovering over the search box
+        searchInput.addEventListener('mouseover', function () {
+            if (searchInput.value.length > 0 && resultsDropdown.children.length > 0) {
+                resultsDropdown.style.display = 'block';
+            }
+        });
+
+        // Prevent dropdown from disappearing when hovering over it
+        resultsDropdown.addEventListener('mouseover', function () {
+            resultsDropdown.style.display = 'block';
+        });
+        resultsDropdown.addEventListener('mouseleave', function () {
+            resultsDropdown.style.display = 'none';
+        });
+
+
+    </script>
+
+</body>
+</html>

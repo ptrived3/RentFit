@@ -1,0 +1,10 @@
+# Ignore everything under env and instance directories
+env/
+instance/
+
+
+# Ignore .idea files
+.idea/
+__pycache__/
+.DS_Store
+*/.DS_Store
