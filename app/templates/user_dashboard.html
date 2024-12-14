@@ -48,7 +48,9 @@
 <div class="card my-3 feed-card">
     <div class="card-body">
         <h5 class="card-title">
-            Posted by {{ post.user.username }}
+            <a href="{{ url_for('view_profile', user_id=post.user.id) }}">
+                Posted by {{ post.user.username }}
+            </a>
             <small class="text-muted">{{ post.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</small>
         </h5>
         <p class="card-text">{{ post.text }}</p>
