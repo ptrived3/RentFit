@@ -8,6 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime, timedelta
+from models import Event
 
 
 # Configure the upload folder for profile pictures
@@ -452,6 +453,137 @@ def places():
     google_maps_api_key = os.getenv('GOOGLE_MAPS_API_KEY')
     print(google_maps_api_key)
     return render_template('places.html', api_key=google_maps_api_key)
+
+# Fetch all events
+@app.route('/api/events', methods=['GET'])
+def get_events():
+    try:
+        # Query all events using SQLAlchemy ORM
+        events = Event.query.all()
+
+        # Build the response list
+        event_list = [
+            {
+                'id': event.id,
+                'name': event.name or "No Name",
+                'location': {
+                    'lat': float(event.location_lat) if event.location_lat else 0.0,
+                    'lng': float(event.location_lng) if event.location_lng else 0.0
+                },
+                'description': event.description or "No Description",
+                'updated_at': event.updated_at.isoformat() if event.updated_at else None
+            }
+            for event in events
+        ]
+
+        return jsonify(event_list), 200
+
+    except Exception as e:
+        # Log the exception (optional, depending on your logging setup)
+        print(f"Error fetching events: {e}")
+        return jsonify({'error': 'Failed to fetch events. Please try again later.'}), 500
+
+
+# Add a new event
+@app.route('/api/events', methods=['POST'])
+def add_event():
+    data = request.json
+
+    # Validate data
+    if not data or 'name' not in data or 'location' not in data or 'description' not in data:
+        return jsonify({'error': 'Invalid data'}), 400
+
+    if 'lat' not in data['location'] or 'lng' not in data['location']:
+        return jsonify({'error': 'Invalid location data'}), 400
+
+    # Create new event
+    new_event = Event(
+        name=data['name'],
+        location_lat=data['location']['lat'],
+        location_lng=data['location']['lng'],
+        description=data['description']
+    )
+
+    try:
+        db.session.add(new_event)
+        db.session.commit()
+        print(f"Added Event: {new_event}")  # Debug: Log the new event
+        return jsonify({
+            'message': 'Event added successfully!',
+            'event': {
+                'id': new_event.id,
+                'name': new_event.name,
+                'location': {
+                    'lat': new_event.location_lat,
+                    'lng': new_event.location_lng
+                },
+                'description': new_event.description
+            }
+        }), 201
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error adding event: {str(e)}")  # Debug: Log any errors
+        return jsonify({'error': f'Failed to add event: {str(e)}'}), 500
+
+# Update an existing event
+@app.route('/api/events/<int:id>', methods=['PUT'])
+def update_event(id):
+    data = request.json
+
+    # Validate incoming data
+    if not data or 'name' not in data or 'location' not in data or 'description' not in data:
+        return jsonify({'error': 'Invalid data'}), 400
+
+    if 'lat' not in data['location'] or 'lng' not in data['location']:
+        return jsonify({'error': 'Invalid location data'}), 400
+
+    # Find the event by ID
+    event = Event.query.get(id)
+    if not event:
+        return jsonify({'error': 'Event not found'}), 404
+
+    # Update the event details
+    event.name = data['name']
+    event.location_lat = data['location']['lat']
+    event.location_lng = data['location']['lng']
+    event.description = data['description']
+    event.updated_at = datetime.utcnow()
+
+    # Commit changes to the database
+    db.session.commit()
+
+    return jsonify({
+        'message': 'Event updated successfully!',
+        'event': {
+            'id': event.id,
+            'name': event.name,
+            'location': {
+                'lat': event.location_lat,
+                'lng': event.location_lng
+            },
+            'description': event.description,
+            'updated_at': event.updated_at.isoformat()
+        }
+    }), 200
+
+# Delete an event
+@app.route('/api/events/<int:id>', methods=['DELETE'])
+def delete_event(id):
+    try:
+        # Find the event to delete
+        event = db.session.query(Event).get(id)
+        if not event:
+            return jsonify({'error': 'Event not found'}), 404
+
+        # Delete the event
+        db.session.delete(event)
+        db.session.commit()
+
+        return jsonify({'message': 'Event deleted successfully!'}), 200
+    except Exception as e:
+        print(f"Error deleting event: {e}")
+        return jsonify({'error': 'Failed to delete the event. Please try again later.'}), 500
+    
 
 ## Admin dashboard routes and methods
 @app.route('/admin')

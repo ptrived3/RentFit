@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container my-5">
-    <h2 class="text-center">Search for Nearby Places</h2>
+    <h2 class="text-center">Search for Nearby Places and Manage Events</h2>
 
     <!-- Autocomplete Search Input -->
     <div class="input-group my-4">
@@ -17,33 +17,15 @@
         <label class="form-label fw-bold">Filter Places of Interest:</label>
         <div class="d-flex flex-wrap gap-3">
             <div class="form-check">
-                <input type="checkbox" id="filter-schools" value="school" class="form-check-input poi-filter">
-                <label for="filter-schools" class="form-check-label">
-                    <i class="bi bi-mortarboard-fill text-info"></i> Schools
-                </label>
-            </div>
-            <div class="form-check">
-                <input type="checkbox" id="filter-hotels" value="lodging" class="form-check-input poi-filter">
-                <label for="filter-hotels" class="form-check-label">
-                    <i class="bi bi-house-fill text-warning"></i> Hotels
-                </label>
-            </div>
-            <div class="form-check">
-                <input type="checkbox" id="filter-hospitals" value="hospital" class="form-check-input poi-filter">
-                <label for="filter-hospitals" class="form-check-label">
-                    <i class="bi bi-hospital-fill text-danger"></i> Hospitals
-                </label>
-            </div>
-            <div class="form-check">
                 <input type="checkbox" id="filter-tourist-attractions" value="tourist_attraction" class="form-check-input poi-filter">
                 <label for="filter-tourist-attractions" class="form-check-label">
                     <i class="bi bi-camera-fill text-success"></i> Tourist Attractions
                 </label>
             </div>
             <div class="form-check">
-                <input type="checkbox" id="filter-software-companies" value="establishment" data-keyword="software" class="form-check-input poi-filter">
-                <label for="filter-software-companies" class="form-check-label">
-                    <i class="bi bi-pc-display-horizontal text-primary"></i> Software Companies
+                <input type="checkbox" id="filter-events" value="event" class="form-check-input poi-filter">
+                <label for="filter-events" class="form-check-label">
+                    <i class="bi bi-calendar-event text-primary"></i> Events
                 </label>
             </div>
         </div>
@@ -52,48 +34,27 @@
     <!-- Map Container -->
     <div id="map" style="height: 500px; width: 100%;" class="border rounded shadow-sm mb-4"></div>
 
-    <!-- Charts Grid -->
-    <div class="row g-4 my-4">
-        <!-- Place Count Chart -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Places Distribution</h5>
-                    <canvas id="placesChart"></canvas>
-                </div>
+    <!-- Add Event Form -->
+    <div class="my-4">
+        <h5>Add or Update Event</h5>
+        <form id="eventForm">
+            <div class="mb-3">
+                <label for="eventName" class="form-label">Event Name</label>
+                <input type="text" id="eventName" class="form-control" placeholder="Enter event name">
             </div>
-        </div>
-
-        <!-- Ratings Distribution -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Ratings Distribution</h5>
-                    <canvas id="ratingsChart"></canvas>
-                </div>
+            <div class="mb-3">
+                <label for="eventLocation" class="form-label">Event Location</label>
+                <input type="text" id="eventLocation" class="form-control" placeholder="Search for location">
             </div>
-        </div>
-
-        <!-- Distance Analysis -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Distance Analysis</h5>
-                    <canvas id="distanceChart"></canvas>
-                </div>
+            <div class="mb-3">
+                <label for="eventDescription" class="form-label">Event Description</label>
+                <textarea id="eventDescription" class="form-control" rows="3" placeholder="Enter a short description of the event"></textarea>
             </div>
-        </div>
-
-        <!-- Price Level Distribution -->
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title">Price Level Distribution</h5>
-                    <canvas id="priceChart"></canvas>
-                </div>
-            </div>
-        </div>
-
+            <div id="eventFeedback" class="text-danger mb-3" style="display: none;">Please select an event on the map to update or delete.</div>
+            <button type="button" class="btn btn-primary" id="addEventButton">Add Event</button>
+            <button type="button" class="btn btn-warning" id="updateEventButton">Update Event</button>
+            <button type="button" class="btn btn-danger" id="deleteEventButton">Delete Event</button>
+        </form>
     </div>
 </div>
 
@@ -104,231 +65,106 @@
     let infowindow;
     let selectedLocation;
     let markers = [];
-    let placeCounts = {};
-    let charts = {};
-    let placeAnalytics = {
-        ratings: {},
-        distances: {},
-        priceLevels: {},
-        placeDetails: []
-    };
-
-    function initAutocomplete() {
-        const defaultLocation = { lat: 37.7749, lng: -122.4194 };
-        map = new google.maps.Map(document.getElementById("map"), {
-            center: defaultLocation,
-            zoom: 12,
-        });
-
-        infowindow = new google.maps.InfoWindow();
-
-        const autocompleteInput = document.getElementById("autocomplete");
-        const autocomplete = new google.maps.places.Autocomplete(autocompleteInput, {
-            types: ["geocode"],
-        });
-
-        autocomplete.addListener("place_changed", () => {
-            const place = autocomplete.getPlace();
-
-            if (place.geometry && place.geometry.location) {
-                selectedLocation = place.geometry.location;
-                map.setCenter(selectedLocation);
-                map.setZoom(14);
-
-                new google.maps.Marker({
-                    position: selectedLocation,
-                    map: map,
-                    title: place.formatted_address,
-                    icon: {
-                        url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-                    }
-                });
-
-                clearMarkers();
-                resetAnalytics();
-                fetchFilteredPlaces();
-            } else {
-                alert("No details available for the selected location.");
-            }
-        });
-
-        initializeCharts();
-    }
-
-    function initializeCharts() {
-        // Places Distribution Chart
-        charts.places = new Chart(document.getElementById('placesChart'), {
-            type: 'bar',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Number of Places',
-                    data: [],
-                    backgroundColor: ['#007bff', '#ffc107', '#28a745', '#dc3545', '#17a2b8'],
-                    borderWidth: 1
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        ticks: {
-                            stepSize: 1
-                        }
-                    }
-                }
-            }
-        });
-
-        // Ratings Distribution Chart
-        charts.ratings = new Chart(document.getElementById('ratingsChart'), {
-            type: 'bar',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Rating Distribution',
-                    data: [],
-                    backgroundColor: function(context) {
-                        // Set a color based on the rating value or index (e.g., different shades of green)
-                        const rating = context.raw;
-                        if (rating >= 4) {
-                            return '#28a745'; // Green for higher ratings
-                        } else if (rating >= 3) {
-                            return '#ffc107'; // Yellow for medium ratings
-                        } else {
-                            return '#dc3545'; // Red for lower ratings
-                        }
-                    },
-                    borderColor: '#28a745',
-                    tension: 0.1,
-                    fill: true
-                }]
-            },
-            options: {
-                responsive: true,
-                indexAxis: 'y',
-                scales: {
-                    y: {
-                        beginAtZero: true
-                    }
-                }
-            }
-        });
-
-        // Distance Analysis Chart
-        charts.distance = new Chart(document.getElementById('distanceChart'), {
-            type: 'scatter',
-            data: {
-                datasets: [{
-                    label: 'Distance vs Rating',
-                    data: [],
-                    backgroundColor: '#dc3545'
-                }]
-            },
-            options: {
-                responsive: true,
-                scales: {
-                    x: {
-                        title: {
-                            display: true,
-                            text: 'Distance (miles)'
-                        }
-                    },
-                    y: {
-                        title: {
-                            display: true,
-                            text: 'Rating'
-                        }
-                    }
-                },
-                plugins: {
-                    tooltip: {
-                        callbacks: {
-                            label: (context) => {
-                                const placeDetails = context.raw.place;
-                                const { x, y } = context.raw;
-                                return `${placeDetails.name || 'Unknown'} : Distance ${x.toFixed(2)} miles, Rating ${y}`;
-                            }
-                        }
-                    }
-                }
-            }
-        });
-
-        // Price Level Distribution Chart
-
-        charts.price = new Chart(document.getElementById('priceChart'), {
-            type: 'doughnut',
-            data: {
-                labels: ['$', '$$', '$$$', '$$$$'],
-                datasets: [{
-                    data: [0, 0, 0, 0],
-                    backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545']
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: {
-                    legend: {
-                        position: 'bottom'
-                    }
-                }
-            }
-        });
-    }
+    let events = [];
+    let selectedEventIndex = null;
 
 
-    function fetchFilteredPlaces() {
-        const selectedFilters = Array.from(document.querySelectorAll(".poi-filter:checked")).map(
-            checkbox => ({ type: checkbox.value, keyword: checkbox.dataset.keyword })
-        );
+    async function initAutocomplete() {
+    const defaultLocation = { lat: 37.7749, lng: -122.4194 };
+    map = new google.maps.Map(document.getElementById("map"), {
+        center: defaultLocation,
+        zoom: 12,
+    });
 
-        if (!selectedFilters.length) {
-            alert("Please select at least one type of place to display.");
+    infowindow = new google.maps.InfoWindow();
+
+    const autocompleteInput = document.getElementById("autocomplete");
+    const autocomplete = new google.maps.places.Autocomplete(autocompleteInput, {
+        types: ["geocode"],
+    });
+
+    autocomplete.addListener("place_changed", () => {
+        const place = autocomplete.getPlace();
+
+        // Validate place input
+        if (!place.geometry || !place.geometry.location) {
+            alert("No details available for the selected location. Returning to default view.");
+            map.setCenter(defaultLocation);
+            map.setZoom(12);
             return;
         }
 
-        selectedFilters.forEach(filter => {
-            const request = {
-                location: selectedLocation,
-                radius: '1500',
-                type: filter.type,
-            };
+        selectedLocation = place.geometry.location;
+        map.setCenter(selectedLocation);
+        map.setZoom(14);
 
-            if (filter.keyword) {
-                request.keyword = filter.keyword;
-            }
-
-            service = new google.maps.places.PlacesService(map);
-            service.nearbySearch(request, (results, status) => handleNearbySearchResults(results, status, filter.type));
+        // Create marker for the selected location
+        new google.maps.Marker({
+            position: selectedLocation,
+            map: map,
+            title: place.formatted_address,
+            icon: {
+                url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+            },
         });
+
+        fetchFilteredPlaces(); // Fetch and display relevant places based on filters
+    });
+
+    // Load events when the page initializes
+    await loadEvents().catch((error) => {
+        console.error("Error loading events:", error);
+        alert("Failed to load events. Please refresh the page.");
+    });
+}
+
+function fetchFilteredPlaces() {
+    const selectedFilters = Array.from(document.querySelectorAll(".poi-filter:checked")).map(
+        checkbox => checkbox.value
+    );
+
+    if (!selectedFilters.length) {
+        alert("Please select at least one type of place to display.");
+        clearMarkers(); // Ensure all markers are cleared if no filters are selected
+        return;
     }
 
-    function handleNearbySearchResults(results, status, type) {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-            placeCounts[type] = (placeCounts[type] || 0) + results.length;
+    // Clear existing markers before fetching new places
+    clearMarkers();
 
+    // Fetch and display events if the "Events" filter is checked
+    if (selectedFilters.includes("event")) {
+        if (events.length > 0) {
+            displayEvents(); // Use the global `events` array to show event markers on the map
+        } else {
+            alert("No events available to display.");
+        }
+    }
+
+    // Fetch and display tourist attractions if the "Tourist Attractions" filter is checked
+    if (selectedFilters.includes("tourist_attraction")) {
+        const request = {
+            location: map.getCenter(),
+            radius: '1500',
+            type: "tourist_attraction",
+        };
+
+        service = new google.maps.places.PlacesService(map);
+        service.nearbySearch(request, (results, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK) {
+                handleNearbySearchResults(results);
+            } else {
+                console.error(`Failed to fetch tourist attractions: ${status}`);
+                alert("Could not fetch tourist attractions. Please try again later.");
+            }
+        });
+    }
+}
+
+    function handleNearbySearchResults(results, status) {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
             results.forEach((place) => {
                 if (place.geometry && place.geometry.location) {
-                    // Calculate distance from selected location
-                    const distance = google.maps.geometry.spherical.computeDistanceBetween(
-                        selectedLocation,
-                        place.geometry.location
-                    ) / 1000 * 0.621371; // Convert to miles
-
-                    // Store place details
-                    placeAnalytics.placeDetails.push({
-                        type: type,
-                        rating: place.rating || 0,
-                        distance: distance,
-                        priceLevel: place.price_level || 0,
-                        place: place
-                    });
-
-                    // Update analytics
-                    updateAnalytics(place, distance);
-
                     const marker = new google.maps.Marker({
                         map,
                         position: place.geometry.location,
@@ -342,84 +178,271 @@
                             `<div>
                                 <strong>${place.name}</strong><br>
                                 ${place.vicinity || ''}<br>
-                                Rating: ${place.rating || 'N/A'}<br>
-                                Distance: ${distance.toFixed(2)} miles
+                                Rating: ${place.rating || 'N/A'}
                             </div>`
                         );
                         infowindow.open(map, marker);
                     });
                 }
             });
-
-            updateAllCharts();
         }
     }
 
-    function updateAnalytics(place, distance) {
-        // Update ratings distribution
-        const rating = Math.floor(place.rating || 0);
-        placeAnalytics.ratings[rating] = (placeAnalytics.ratings[rating] || 0) + 1;
+    async function loadEvents() {
+    try {
+        // Fetch events from the API
+        const response = await fetch('/api/events');
+        if (response.ok) {
+            const fetchedEvents = await response.json(); // Get the events data from the response
 
-        // Update distance ranges
-        const distanceRange = Math.floor(distance);
-        placeAnalytics.distances[distanceRange] = (placeAnalytics.distances[distanceRange] || 0) + 1;
+            // Map fetched events to the global `events` array
+            events = fetchedEvents.map(event => ({
+                id: event.id,
+                name: event.name,
+                location: {
+                    lat: parseFloat(event.location.lat) || 0.0,
+                    lng: parseFloat(event.location.lng) || 0.0,
+                },
+                description: event.description,
+            }));
 
-        // Update price levels
-        const priceLevel = place.price_level || 0;
-        placeAnalytics.priceLevels[priceLevel] = (placeAnalytics.priceLevels[priceLevel] || 0) + 1;
+            displayEvents(); // Display the fetched events on the map
+        } else {
+            console.error(`Failed to load events: ${response.status} ${response.statusText}`);
+        }
+    } catch (error) {
+        console.error("Error fetching events:", error);
+    }
+}
+
+
+
+
+    function addEvent() {
+    const eventName = document.getElementById("eventName").value;
+    const eventLocationInput = document.getElementById("eventLocation").value;
+    const eventDescription = document.getElementById("eventDescription").value;
+
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: eventLocationInput }, (results, status) => {
+        if (status === "OK" && results[0]) {
+            const eventLocation = results[0].geometry.location;
+
+            // Create the marker
+            const marker = new google.maps.Marker({
+                position: eventLocation,
+                map: map,
+                title: eventName,
+                icon: {
+                    url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
+                }
+            });
+
+            markers.push(marker);
+
+            // Add event to the events array
+            events.push({ name: eventName, location: eventLocation, description: eventDescription });
+
+            // Add event to the database
+            const newEvent = {
+                name: eventName,
+                location: { lat: eventLocation.lat(), lng: eventLocation.lng() },
+                description: eventDescription
+            };
+
+            fetch('/api/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newEvent)
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log("Event successfully added to the database.");
+                } else {
+                    console.error("Failed to add event to the database.");
+                }
+            })
+            .catch(error => console.error("Error adding event to the database:", error));
+
+            // Add an info window for the marker
+            google.maps.event.addListener(marker, "click", () => {
+                infowindow.setContent(
+                    `<div>
+                        <strong>${eventName}</strong><br>
+                        Location: ${eventLocationInput}<br>
+                        Description: ${eventDescription}
+                    </div>`
+                );
+                infowindow.open(map, marker);
+
+                selectedEventIndex = events.findIndex(event => event.name === eventName);
+                document.getElementById("eventFeedback").style.display = "none";
+            });
+
+            alert("Event added successfully!");
+        } else {
+            alert("Failed to find location: " + status);
+        }
+    });
+}
+
+
+    
+    async function updateEvent() {
+    if (selectedEventIndex === null) {
+        document.getElementById("eventFeedback").style.display = "block";
+        return;
     }
 
-    function updateAllCharts() {
-        // Update Places Distribution Chart
-        charts.places.data.labels = Object.keys(placeCounts);
-        charts.places.data.datasets[0].data = Object.values(placeCounts);
-        charts.places.update();
+    const updatedName = document.getElementById("eventName").value;
+    const updatedDescription = document.getElementById("eventDescription").value;
+    const updatedLat = events[selectedEventIndex].location.lat;
+    const updatedLng = events[selectedEventIndex].location.lng;
 
-        // Update Ratings Distribution Chart
-        const ratingLabels = Object.keys(placeAnalytics.ratings).sort();
-        charts.ratings.data.labels = ratingLabels;
-        charts.ratings.data.datasets[0].data = ratingLabels.map(label => placeAnalytics.ratings[label]);
-        charts.ratings.update();
+    const updatedEvent = {
+        name: updatedName,
+        description: updatedDescription,
+        location: { lat: updatedLat, lng: updatedLng }, // Include lat/lng in the update payload
+    };
 
-        // Update Distance vs Rating Scatter Plot
-        charts.distance.data.datasets[0].data = placeAnalytics.placeDetails.map(detail => ({
-            x: detail.distance,
-            y: detail.rating,
-            place: detail.place
+    try {
+        const response = await fetch(`/api/events/${events[selectedEventIndex].id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updatedEvent),
+        });
 
-        }));
-        charts.distance.update();
+        if (response.ok) {
+            alert("Event updated successfully!");
 
-        // Update Price Level Chart
-        charts.price.data.datasets[0].data = [
-            placeAnalytics.priceLevels[1] || 0,
-            placeAnalytics.priceLevels[2] || 0,
-            placeAnalytics.priceLevels[3] || 0,
-            placeAnalytics.priceLevels[4] || 0
-        ];
-        charts.price.update();
+            // Update the global events array for the selected event
+            events[selectedEventIndex].name = updatedName;
+            events[selectedEventIndex].description = updatedDescription;
+
+            // Re-display events without reloading the whole page
+            displayEvents();
+
+            selectedEventIndex = null; // Clear the selected index
+        } else {
+            alert("Failed to update event.");
+        }
+    } catch (error) {
+        console.error("Error updating event:", error);
+    }
+}
+
+
+    // function deleteEvent() {
+    //     if (selectedEventIndex === null) {
+    //         document.getElementById("eventFeedback").style.display = "block";
+    //         return;
+    //     }
+
+    //     events.splice(selectedEventIndex, 1);
+    //     selectedEventIndex = null;
+
+    //     alert("Event deleted successfully!");
+    //     displayEvents();
+    // }
+
+    async function deleteEvent() {
+    if (selectedEventIndex === null) {
+        document.getElementById("eventFeedback").style.display = "block";
+        return;
     }
 
-    function clearMarkers() {
-        markers.forEach(marker => marker.setMap(null));
-        markers = [];
-    }
+    // Get the ID of the selected event
+    const eventId = events[selectedEventIndex].id;
 
-    function resetAnalytics() {
-        placeCounts = {};
-        placeAnalytics = {
-            ratings: {},
-            distances: {},
-            priceLevels: {},
-            placeDetails: []
-        };
-        updateAllCharts();
-    }
+    try {
+        // Send DELETE request to the server
+        const response = await fetch(`/api/events/${eventId}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+        });
 
+        if (response.ok) {
+            alert("Event deleted successfully!");
+
+            // Remove the event from the global events array
+            events.splice(selectedEventIndex, 1);
+            selectedEventIndex = null;
+
+            // Refresh the markers on the map
+            displayEvents();
+        } else {
+            alert("Failed to delete the event.");
+        }
+    } catch (error) {
+        console.error("Error deleting event:", error);
+        alert("An error occurred while deleting the event. Please try again.");
+    }
+}
+
+
+    function displayEvents() {
+    clearMarkers(); // Clear existing markers before displaying new ones
+
+    events.forEach((event, index) => {
+        // Validate the event location
+        if (
+            typeof event.location.lat !== "number" ||
+            typeof event.location.lng !== "number" ||
+            isNaN(event.location.lat) ||
+            isNaN(event.location.lng)
+        ) {
+            console.warn(`Skipping event with invalid location: ${event.name}`);
+            return;
+        }
+
+        const marker = new google.maps.Marker({
+            position: { lat: event.location.lat, lng: event.location.lng },
+            map: map,
+            title: event.name,
+            icon: {
+                url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
+            },
+        });
+
+        markers.push(marker); // Store the marker for later reference
+
+        google.maps.event.addListener(marker, "click", () => {
+            infowindow.setContent(
+                `<div>
+                    <strong>${event.name}</strong><br>
+                    Location: (${event.location.lat}, ${event.location.lng})<br>
+                    Description: ${event.description || "No description available."}
+                </div>`
+            );
+            infowindow.open(map, marker);
+
+            // Set form fields with event data
+            selectedEventIndex = index; // Store the selected event index
+            document.getElementById("eventName").value = event.name;
+            document.getElementById("eventLocation").value = ""; // Clear location field
+            document.getElementById("eventDescription").value = event.description;
+            document.getElementById("eventFeedback").style.display = "none";
+        });
+    });
+}
+
+
+ function clearMarkers(filterType = null) {
+    markers = markers.filter(marker => {
+        if (filterType && marker.type !== filterType) {
+            return true; // Keep this marker if it doesn't match the filterType
+        }
+        marker.setMap(null); // Remove the marker from the map
+        return false; // Remove it from the array
+    });
+}
+
+    document.getElementById("addEventButton").addEventListener("click", addEvent);
+    document.getElementById("updateEventButton").addEventListener("click", updateEvent);
+    document.getElementById("deleteEventButton").addEventListener("click", deleteEvent);
     document.addEventListener("change", (event) => {
-        if (event.target.classList.contains("poi-filter") && selectedLocation) {
+        if (event.target.classList.contains("poi-filter")) {
             clearMarkers();
-            resetAnalytics();
             fetchFilteredPlaces();
         }
     });
@@ -428,7 +451,6 @@
 </script>
 
 <script async defer
-    src="https://maps.googleapis.com/maps/api/js?key={{api_key}}&libraries=places,geometry" loading="async" >
-
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBFCrQjBSn78eJfK9uP7PB2YlvqS5KEFnM&libraries=places,geometry&callback=initAutocomplete">
 </script>
 {% endblock %}

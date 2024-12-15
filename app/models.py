@@ -126,3 +126,50 @@ class GameSession(db.Model):
     player1 = db.relationship('User', foreign_keys=[player1_id], backref='games_as_player1')
     player2 = db.relationship('User', foreign_keys=[player2_id], backref='games_as_player2')
     winner = db.relationship('User', foreign_keys=[winner_id], backref='games_won')
+
+class Event(db.Model):
+    __tablename__ = 'events'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    location_lat = db.Column(db.Float, nullable=False)
+    location_lng = db.Column(db.Float, nullable=False)
+    description = db.Column(db.Text, default="No description provided.")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    @validates('location_lat')
+    def validate_latitude(self, key, value):
+        """Ensure latitude is in the range -90 to 90."""
+        if not (-90 <= value <= 90):
+            raise ValueError("Latitude must be between -90 and 90.")
+        return value
+
+    @validates('location_lng')
+    def validate_longitude(self, key, value):
+        """Ensure longitude is in the range -180 to 180."""
+        if not (-180 <= value <= 180):
+            raise ValueError("Longitude must be between -180 and 180.")
+        return value
+
+    def to_dict(self):
+        """Convert an Event instance to a dictionary for JSON responses."""
+        return {
+            'id': self.id,
+            'name': self.name,
+            'location': {
+                'lat': self.location_lat,
+                'lng': self.location_lng
+            },
+            'description': self.description or "No description provided.",
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+    def __repr__(self):
+        """Provide a string representation of the Event instance."""
+        return (
+            f"<Event id={self.id}, name='{self.name}', "
+            f"location=({self.location_lat}, {self.location_lng}), "
+            f"description='{self.description[:20] if self.description else 'None'}'>"
+        )

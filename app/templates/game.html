@@ -138,7 +138,7 @@
 
 <!-- Handle player move and update game board -->
 <script>
-    const gameId = {{ game.id }};
+    const gameId = {{game.id}};
     document.querySelectorAll('.make-move').forEach(button => {
         button.addEventListener('click', async (event) => {
             const position = event.target.dataset.position;
