@@ -3,13 +3,12 @@ import base64
 from flask import render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from app import app, db, login_manager
-from models import User, Follow, Post, Like, GameSession
+from models import User, Follow, Post, Like, GameSession, Collection, Category, Item
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import os
 from datetime import datetime, timedelta
 from models import Event
-
 
 # Configure the upload folder for profile pictures
 UPLOAD_FOLDER = 'static/uploads'
@@ -599,6 +598,82 @@ def set_default_pics():
     db.session.commit()
     print(f"Updated {len(users)} users with default profile pictures.")
 
-@app.route('/collections')
+@app.route('/collections', methods=['GET'])
+@login_required
 def collections():
-    return render_template('collections.html')
+    # Example: Fetch collections from the database for the current user
+    user_collections = Collection.query.filter_by(user_id=current_user.id).all()
+    return render_template('collections.html', collections=user_collections)
+
+@app.route('/manage_collections', methods=['GET', 'POST'])
+@login_required
+def manage_collections():
+    if request.method == 'POST':
+        # Retrieve form data
+        collection_name = request.form.get('collection_name')
+        category_id = request.form.get('category_id')  # Selected category
+        description = request.form.get('description')
+
+        # Create a new collection
+        new_collection = Collection(
+            category_id=category_id,
+            collection_name=collection_name,
+            user_id=current_user.id,
+            description=description
+        )
+        db.session.add(new_collection)
+        db.session.commit()
+        flash('Collection added successfully!', 'success')
+        return redirect(url_for('manage_collections'))
+
+    # Fetch user collections and categories for dropdown
+    user_collections = Collection.query.filter_by(user_id=current_user.id).all()
+    categories = Category.query.all()
+    return render_template(
+        'manage_collections.html',
+        collections=user_collections,
+        categories=categories
+    )
+
+
+@app.route('/manage_items', methods=['GET', 'POST'])
+@login_required
+def manage_items():
+    if request.method == 'POST':
+        # Retrieve form data
+        item_name = request.form.get('item_name')
+        collection_id = request.form.get('collection_id')
+        estimated_value = request.form.get('estimated_value')
+        condition = request.form.get('condition')
+        acquired_date = request.form.get('acquired_date')
+        description = request.form.get('description')
+
+        # Get the associated collection to determine the category
+        collection = Collection.query.get(collection_id)
+        if not collection or collection.user_id != current_user.id:
+            flash('Invalid collection selected.', 'error')
+            return redirect(url_for('manage_items'))
+
+        # Create a new item
+        new_item = Item(
+            category_id=collection.category_id,  # Auto-populate category
+            collection_id=collection_id,
+            item_name=item_name,
+            acquired_date=datetime.strptime(acquired_date, '%Y-%m-%d'),
+            estimated_value=estimated_value,
+            condition=condition,
+            description=description
+        )
+        db.session.add(new_item)
+        db.session.commit()
+        flash('Item added successfully!', 'success')
+        return redirect(url_for('manage_items'))
+
+    # Fetch collections and items for the current user
+    user_collections = Collection.query.filter_by(user_id=current_user.id).all()
+    items = Item.query.join(Collection).filter(Collection.user_id == current_user.id).all()
+    return render_template(
+        'manage_items.html',
+        collections=user_collections,
+        items=items
+    )

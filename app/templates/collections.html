@@ -2,7 +2,28 @@
 
 {% block content %}
 <div class="container">
-    <h1>Collections</h1>
-    <p>Welcome to the Collections page! Add your collections here.</p>
+    <h1>Your Collections</h1>
+    <p>Welcome, {{ current_user.username }}! Here are your collections:</p>
+
+    {% if collections %}
+    <div class="row">
+        {% for collection in collections %}
+        <div class="col-md-4 mb-4 card">
+            <div class="card-body">
+                <h5 class="card-title">{{ collection.collection_name }}</h5>
+                <p class="card-text">{{ collection.description }}</p>
+                <p><strong>Category:</strong> {{ collection.category.category_name }}</p>
+                <p><strong>Items:</strong> {{ collection.items|length }}</p>
+                <a href="{{ url_for('manage_items', collection_id=collection.collection_id) }}" class="btn btn-info">Manage Items</a>
+                <a href="{{ url_for('manage_collections', collection_id=collection.collection_id) }}" class="btn btn-info">Manage Collections</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No collections found. Start by adding a new collection!</p>
+    {% endif %}
+
+    <a href="{{ url_for('manage_collections') }}" class="btn btn-primary mt-3">Add New Collection</a>
 </div>
 {% endblock %}

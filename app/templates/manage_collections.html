@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Manage Collections</h1>
+    <form method="POST" action="{{ url_for('manage_collections') }}">
+        <div class="form-group">
+            <label for="collection_name">Collection Name:</label>
+            <input type="text" id="collection_name" name="collection_name" class="form-control" required placeholder="Enter collection name">
+        </div>
+        <div class="form-group">
+            <label for="category_id">Category:</label>
+            <select id="category_id" name="category_id" class="form-control" required>
+                {% for category in categories %}
+                <option value="{{ category.category_id }}">{{ category.category_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" class="form-control" rows="3" required placeholder="Enter a description"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Collection</button>
+    </form>
+
+    {% if collections %}
+    <h2 class="mt-4">Your Collections</h2>
+    <ul class="list-group">
+        {% for collection in collections %}
+        <li class="list-group-item">
+            <strong>{{ collection.collection_name }}</strong> - {{ collection.description }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No collections to manage yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

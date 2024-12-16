@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Manage Items</h1>
+    <form method="POST" action="{{ url_for('manage_items') }}">
+        <div class="form-group">
+            <label for="item_name">Item Name:</label>
+            <input type="text" id="item_name" name="item_name" class="form-control" required placeholder="Enter item name">
+        </div>
+        <div class="form-group">
+            <label for="collection_id">Collection:</label>
+            <select id="collection_id" name="collection_id" class="form-control" required>
+                {% for collection in collections %}
+                <option value="{{ collection.collection_id }}">{{ collection.collection_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="estimated_value">Estimated Value:</label>
+            <input type="number" id="estimated_value" name="estimated_value" class="form-control" required placeholder="Enter estimated value">
+        </div>
+        <div class="form-group">
+            <label for="condition">Condition:</label>
+            <input type="text" id="condition" name="condition" class="form-control" required placeholder="Enter condition (e.g., New, Used)">
+        </div>
+        <div class="form-group">
+            <label for="acquired_date">Acquired Date:</label>
+            <input type="date" id="acquired_date" name="acquired_date" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" class="form-control" rows="3" required placeholder="Enter description"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Add Item</button>
+    </form>
+
+    {% if items %}
+    <h2 class="mt-4">Your Items</h2>
+    <ul class="list-group">
+        {% for item in items %}
+        <li class="list-group-item">
+            <strong>{{ item.item_name }}</strong> - {{ item.condition }} - {{ item.estimated_value }} 
+            (in {{ item.collection.collection_name }})
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No items to display.</p>
+    {% endif %}
+</div>
+{% endblock %}
