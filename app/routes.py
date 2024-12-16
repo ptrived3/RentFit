@@ -489,12 +489,9 @@ def get_events():
 def add_event():
     data = request.json
 
-    # Validate data
+    # Validate input
     if not data or 'name' not in data or 'location' not in data or 'description' not in data:
-        return jsonify({'error': 'Invalid data'}), 400
-
-    if 'lat' not in data['location'] or 'lng' not in data['location']:
-        return jsonify({'error': 'Invalid location data'}), 400
+        return jsonify({'error': 'Invalid input data'}), 400
 
     # Create new event
     new_event = Event(
@@ -507,23 +504,21 @@ def add_event():
     try:
         db.session.add(new_event)
         db.session.commit()
-        print(f"Added Event: {new_event}")  # Debug: Log the new event
         return jsonify({
-            'message': 'Event added successfully!',
-            'event': {
-                'id': new_event.id,
-                'name': new_event.name,
-                'location': {
-                    'lat': new_event.location_lat,
-                    'lng': new_event.location_lng
-                },
-                'description': new_event.description
-            }
-        }), 201
+            'id': new_event.id,
+            'name': new_event.name,
+            'location': {
+                'lat': new_event.location_lat,
+                'lng': new_event.location_lng
+            },
+            'description': new_event.description
+        }), 201  # 201 status for Created
     except Exception as e:
         db.session.rollback()
-        print(f"Error adding event: {str(e)}")  # Debug: Log any errors
-        return jsonify({'error': f'Failed to add event: {str(e)}'}), 500
+        print(f"Error: {e}")
+        return jsonify({'error': 'Failed to save event'}), 500
+
+
 
 # Update an existing event
 @app.route('/api/events/<int:id>', methods=['PUT'])

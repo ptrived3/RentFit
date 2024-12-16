@@ -16,12 +16,12 @@
     <div class="mb-4">
         <label class="form-label fw-bold">Filter Places of Interest:</label>
         <div class="d-flex flex-wrap gap-3">
-            <div class="form-check">
-                <input type="checkbox" id="filter-tourist-attractions" value="tourist_attraction" class="form-check-input poi-filter">
-                <label for="filter-tourist-attractions" class="form-check-label">
-                    <i class="bi bi-camera-fill text-success"></i> Tourist Attractions
-                </label>
-            </div>
+            <!-- <div class="form-check"> -->
+                <!-- <input type="checkbox" id="filter-tourist-attractions" value="tourist_attraction" class="form-check-input poi-filter">
+                <label for="filter-tourist-attractions" class="form-check-label"> -->
+                    <!-- <i class="bi bi-camera-fill text-success"></i> Tourist Attractions
+                </label> -->
+            <!-- </div> -->
             <div class="form-check">
                 <input type="checkbox" id="filter-events" value="event" class="form-check-input poi-filter">
                 <label for="filter-events" class="form-check-label">
@@ -34,27 +34,59 @@
     <!-- Map Container -->
     <div id="map" style="height: 500px; width: 100%;" class="border rounded shadow-sm mb-4"></div>
 
-    <!-- Add Event Form -->
+    <!-- Add Event Form with Tabs -->
     <div class="my-4">
-        <h5>Add or Update Event</h5>
-        <form id="eventForm">
-            <div class="mb-3">
-                <label for="eventName" class="form-label">Event Name</label>
-                <input type="text" id="eventName" class="form-control" placeholder="Enter event name">
+        <h5>Manage Events</h5>
+
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="eventTabs">
+            <li class="nav-item">
+                <button class="nav-link active" id="add-tab" data-bs-toggle="tab" data-bs-target="#add-tab-pane" type="button">Add Event</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="update-tab" data-bs-toggle="tab" data-bs-target="#update-tab-pane" type="button">Update Event</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="delete-tab" data-bs-toggle="tab" data-bs-target="#delete-tab-pane" type="button">Delete Event</button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content mt-3">
+            <!-- Add Event Tab -->
+            <div class="tab-pane fade show active" id="add-tab-pane">
+                <form>
+                    <label>Event Name</label>
+                    <input type="text" id="addEventName" class="form-control mb-2">
+                    <label>Event Location</label>
+                    <input type="text" id="addEventLocation" class="form-control mb-2">
+                    <label>Event Description</label>
+                    <textarea id="addEventDescription" class="form-control mb-2"></textarea>
+                    <button type="button" id="addEventButton" class="btn btn-primary">Add Event</button>
+                </form>
             </div>
-            <div class="mb-3">
-                <label for="eventLocation" class="form-label">Event Location</label>
-                <input type="text" id="eventLocation" class="form-control" placeholder="Search for location">
+
+            <!-- Update Event Tab -->
+            <div class="tab-pane fade" id="update-tab-pane">
+                <form>
+                    <label>Event Name</label>
+                    <input type="text" id="updateEventName" class="form-control mb-2">
+                    <label>Event Description</label>
+                    <textarea id="updateEventDescription" class="form-control mb-2"></textarea>
+                    <button type="button" id="updateEventButton" class="btn btn-warning">Update Event</button>
+                </form>
             </div>
-            <div class="mb-3">
-                <label for="eventDescription" class="form-label">Event Description</label>
-                <textarea id="eventDescription" class="form-control" rows="3" placeholder="Enter a short description of the event"></textarea>
+
+            <!-- Delete Event Tab -->
+            <div class="tab-pane fade" id="delete-tab-pane">
+                <form>
+                    <label>Event Name</label>
+                    <input type="text" id="deleteEventName" class="form-control mb-2">
+                    <button type="button" id="deleteEventButton" class="btn btn-danger">Delete Event</button>
+                </form>
             </div>
-            <div id="eventFeedback" class="text-danger mb-3" style="display: none;">Please select an event on the map to update or delete.</div>
-            <button type="button" class="btn btn-primary" id="addEventButton">Add Event</button>
-            <button type="button" class="btn btn-warning" id="updateEventButton">Update Event</button>
-            <button type="button" class="btn btn-danger" id="deleteEventButton">Delete Event</button>
-        </form>
+        </div>
     </div>
 </div>
 
@@ -69,133 +101,226 @@
     let selectedEventIndex = null;
 
 
-    async function initAutocomplete() {
-    const defaultLocation = { lat: 37.7749, lng: -122.4194 };
+    function debounce(func, delay) {
+        let timer;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(() => func(...args), delay);
+        };
+    }
+
+    const debouncedFetchFilteredPlaces = debounce(fetchFilteredPlaces, 300);
+
+    async function fetchFilteredPlaces() {
+        const selectedFilters = Array.from(document.querySelectorAll(".poi-filter:checked")).map(
+            checkbox => checkbox.value
+        );
+
+        // Clear all markers to avoid stale markers on map
+        clearMarkers();
+
+        // Handle events if "Events" filter is checked
+        if (selectedFilters.includes("event")) {
+            try {
+                // Reload events only if they haven't been loaded yet
+                if (events.length === 0) {
+                    await loadEvents();
+                }
+                displayEvents(); // Display events from the current global `events` array
+            } catch (error) {
+                console.error("Error loading events:", error);
+                alert("Failed to load events. Please try again.");
+            }
+        }
+    }
+
+
+let debounceTimeout;
+
+
+// async function initAutocomplete() {
+//     const defaultLocation = { lat: 37.7749, lng: -122.4194 };
+
+//     // Initialize map
+//     map = new google.maps.Map(document.getElementById("map"), {
+//         center: defaultLocation,
+//         zoom: 12,
+//         mapTypeControl: false,
+//         fullscreenControl: false,
+//         streetViewControl: false
+//     });
+
+//     infowindow = new google.maps.InfoWindow();
+
+//     // Loading Indicator
+//     const loadingIndicator = document.createElement("div");
+//     loadingIndicator.innerText = "Loading events...";
+//     loadingIndicator.style.position = "absolute";
+//     loadingIndicator.style.top = "10px";
+//     loadingIndicator.style.left = "10px";
+//     loadingIndicator.style.padding = "5px 10px";
+//     loadingIndicator.style.backgroundColor = "white";
+//     loadingIndicator.style.zIndex = "1000";
+//     loadingIndicator.style.display = "none";
+//     document.body.appendChild(loadingIndicator);
+
+//     const autocompleteInput = document.getElementById("autocomplete");
+//     const autocomplete = new google.maps.places.Autocomplete(autocompleteInput, {
+//         types: ["geocode"],
+//     });
+
+//     // Debounce "place_changed" listener
+//     autocomplete.addListener("place_changed", () => {
+//         clearTimeout(debounceTimeout);
+//         debounceTimeout = setTimeout(() => handlePlaceChanged(autocomplete), 300);
+//     });
+
+//     // Load events on page load
+//     try {
+//         loadingIndicator.style.display = "block";
+//         await loadEvents();
+//         console.log("Events loaded successfully.");
+//     } catch (error) {
+//         console.error("Error loading events:", error);
+//         alert("Failed to load events. Please refresh the page.");
+//     } finally {
+//         loadingIndicator.style.display = "none";
+//     }
+// }
+
+async function initAutocomplete() {
+    const fallbackLocation = { lat: 37.7749, lng: -122.4194 }; // Default location (e.g., San Francisco)
+
+    // Initialize map with a temporary center before getting user's location
     map = new google.maps.Map(document.getElementById("map"), {
-        center: defaultLocation,
+        center: fallbackLocation,
         zoom: 12,
+        mapTypeControl: false,
+        fullscreenControl: false,
+        streetViewControl: false,
     });
 
     infowindow = new google.maps.InfoWindow();
+
+    // Loading Indicator
+    const loadingIndicator = document.createElement("div");
+    loadingIndicator.innerText = "Loading events...";
+    loadingIndicator.style.position = "absolute";
+    loadingIndicator.style.top = "10px";
+    loadingIndicator.style.left = "10px";
+    loadingIndicator.style.padding = "5px 10px";
+    loadingIndicator.style.backgroundColor = "white";
+    loadingIndicator.style.zIndex = "1000";
+    loadingIndicator.style.display = "none";
+    document.body.appendChild(loadingIndicator);
 
     const autocompleteInput = document.getElementById("autocomplete");
     const autocomplete = new google.maps.places.Autocomplete(autocompleteInput, {
         types: ["geocode"],
     });
 
-    autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
-
-        // Validate place input
-        if (!place.geometry || !place.geometry.location) {
-            alert("No details available for the selected location. Returning to default view.");
-            map.setCenter(defaultLocation);
-            map.setZoom(12);
-            return;
-        }
-
-        selectedLocation = place.geometry.location;
-        map.setCenter(selectedLocation);
-        map.setZoom(14);
-
-        // Create marker for the selected location
-        new google.maps.Marker({
-            position: selectedLocation,
-            map: map,
-            title: place.formatted_address,
-            icon: {
-                url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+    // Attempt to get the user's current location
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const userLocation = {
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude,
+                };
+                map.setCenter(userLocation);
+                map.setZoom(14);
+                console.log("User's location set as the map center.");
             },
-        });
+            (error) => {
+                console.warn(`Geolocation error: ${error.message}. Using fallback location.`);
+                map.setCenter(fallbackLocation); // Fallback to the default location
+            }
+        );
+    } else {
+        console.warn("Geolocation not supported by this browser. Using fallback location.");
+        map.setCenter(fallbackLocation); // Fallback to the default location
+    }
 
-        fetchFilteredPlaces(); // Fetch and display relevant places based on filters
+    // Debounce "place_changed" listener
+    autocomplete.addListener("place_changed", () => {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => handlePlaceChanged(autocomplete), 300);
     });
 
-    // Load events when the page initializes
-    await loadEvents().catch((error) => {
+    // Load events on page load
+    try {
+        loadingIndicator.style.display = "block";
+        await loadEvents();
+        console.log("Events loaded successfully.");
+    } catch (error) {
         console.error("Error loading events:", error);
         alert("Failed to load events. Please refresh the page.");
-    });
+    } finally {
+        loadingIndicator.style.display = "none";
+    }
 }
 
-function fetchFilteredPlaces() {
-    const selectedFilters = Array.from(document.querySelectorAll(".poi-filter:checked")).map(
-        checkbox => checkbox.value
-    );
 
-    if (!selectedFilters.length) {
-        alert("Please select at least one type of place to display.");
-        clearMarkers(); // Ensure all markers are cleared if no filters are selected
+// New function to handle place selection
+function handlePlaceChanged(autocomplete) {
+    const place = autocomplete.getPlace();
+
+    if (!place.geometry || !place.geometry.location) {
+        alert("No details available for the selected location. Returning to default view.");
+        map.setCenter({ lat: 37.7749, lng: -122.4194 });
+        map.setZoom(12);
         return;
     }
 
-    // Clear existing markers before fetching new places
-    clearMarkers();
+    const selectedLat = place.geometry.location.lat();
+    const selectedLng = place.geometry.location.lng();
 
-    // Fetch and display events if the "Events" filter is checked
-    if (selectedFilters.includes("event")) {
-        if (events.length > 0) {
-            displayEvents(); // Use the global `events` array to show event markers on the map
-        } else {
-            alert("No events available to display.");
+    // Check for matching event
+    const matchingEvent = events.find(event => 
+        parseFloat(event.location.lat).toFixed(6) === selectedLat.toFixed(6) &&
+        parseFloat(event.location.lng).toFixed(6) === selectedLng.toFixed(6)
+    );
+
+    if (matchingEvent) {
+        // Trigger the green pin's click listener
+        const existingMarker = markers.find(marker => 
+            marker.getPosition().lat().toFixed(6) === selectedLat.toFixed(6) &&
+            marker.getPosition().lng().toFixed(6) === selectedLng.toFixed(6)
+        );
+
+        if (existingMarker) {
+            google.maps.event.trigger(existingMarker, 'click');
         }
+        
+        map.setCenter(place.geometry.location);
+        map.setZoom(14);
+        return; // Skip adding a blue marker
     }
 
-    // Fetch and display tourist attractions if the "Tourist Attractions" filter is checked
-    if (selectedFilters.includes("tourist_attraction")) {
-        const request = {
-            location: map.getCenter(),
-            radius: '1500',
-            type: "tourist_attraction",
-        };
+    // Default blue marker if no matching green marker exists
+    clearMarkers();
+    const marker = new google.maps.Marker({
+        position: place.geometry.location,
+        map: map,
+        title: place.formatted_address,
+        icon: { url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png" },
+    });
+    markers.push(marker);
 
-        service = new google.maps.places.PlacesService(map);
-        service.nearbySearch(request, (results, status) => {
-            if (status === google.maps.places.PlacesServiceStatus.OK) {
-                handleNearbySearchResults(results);
-            } else {
-                console.error(`Failed to fetch tourist attractions: ${status}`);
-                alert("Could not fetch tourist attractions. Please try again later.");
-            }
-        });
-    }
+    map.setCenter(place.geometry.location);
+    map.setZoom(14);
+
+    console.log("Location updated. Marker added.");
 }
 
-    function handleNearbySearchResults(results, status) {
-        if (status === google.maps.places.PlacesServiceStatus.OK && results) {
-            results.forEach((place) => {
-                if (place.geometry && place.geometry.location) {
-                    const marker = new google.maps.Marker({
-                        map,
-                        position: place.geometry.location,
-                        title: place.name,
-                    });
 
-                    markers.push(marker);
-
-                    google.maps.event.addListener(marker, "click", () => {
-                        infowindow.setContent(
-                            `<div>
-                                <strong>${place.name}</strong><br>
-                                ${place.vicinity || ''}<br>
-                                Rating: ${place.rating || 'N/A'}
-                            </div>`
-                        );
-                        infowindow.open(map, marker);
-                    });
-                }
-            });
-        }
-    }
-
-    async function loadEvents() {
+async function loadEvents() {
     try {
-        // Fetch events from the API
         const response = await fetch('/api/events');
         if (response.ok) {
-            const fetchedEvents = await response.json(); // Get the events data from the response
+            const fetchedEvents = await response.json();
 
-            // Map fetched events to the global `events` array
+            // Reset and update the global `events` array
             events = fetchedEvents.map(event => ({
                 id: event.id,
                 name: event.name,
@@ -203,251 +328,290 @@ function fetchFilteredPlaces() {
                     lat: parseFloat(event.location.lat) || 0.0,
                     lng: parseFloat(event.location.lng) || 0.0,
                 },
-                description: event.description,
+                description: event.description || "No description available.",
             }));
 
-            displayEvents(); // Display the fetched events on the map
+            console.log("Events loaded successfully:", events); // Debug log
         } else {
             console.error(`Failed to load events: ${response.status} ${response.statusText}`);
         }
     } catch (error) {
         console.error("Error fetching events:", error);
+        alert("An error occurred while loading events. Please try again.");
     }
 }
 
 
+let actionOccurred = false; // Global flag
 
 
-    function addEvent() {
-    const eventName = document.getElementById("eventName").value;
-    const eventLocationInput = document.getElementById("eventLocation").value;
-    const eventDescription = document.getElementById("eventDescription").value;
+async function addEvent() {
+    const name = document.getElementById("addEventName").value.trim();
+    const location = document.getElementById("addEventLocation").value.trim();
+    const description = document.getElementById("addEventDescription").value.trim();
+
+    if (!name || !location || !description) {
+        alert("All fields are required for adding an event.");
+        return;
+    }
 
     const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ address: eventLocationInput }, (results, status) => {
+    geocoder.geocode({ address: location }, async (results, status) => {
         if (status === "OK" && results[0]) {
-            const eventLocation = results[0].geometry.location;
+            const { lat, lng } = results[0].geometry.location;
 
-            // Create the marker
-            const marker = new google.maps.Marker({
-                position: eventLocation,
-                map: map,
-                title: eventName,
-                icon: {
-                    url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png'
-                }
-            });
+            try {
+                const response = await fetch("/api/events", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name,
+                        location: { lat: lat(), lng: lng() },
+                        description,
+                    }),
+                });
 
-            markers.push(marker);
-
-            // Add event to the events array
-            events.push({ name: eventName, location: eventLocation, description: eventDescription });
-
-            // Add event to the database
-            const newEvent = {
-                name: eventName,
-                location: { lat: eventLocation.lat(), lng: eventLocation.lng() },
-                description: eventDescription
-            };
-
-            fetch('/api/events', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newEvent)
-            })
-            .then(response => {
                 if (response.ok) {
-                    console.log("Event successfully added to the database.");
+                    alert("Event added successfully!");
+
+                    // Update the global events array
+                    const newEvent = {
+                        id: (await response.json()).id, // Get the new event's ID from the server response
+                        name,
+                        location: { lat: lat(), lng: lng() },
+                        description,
+                    };
+
+                    events.push(newEvent); // Add the new event to the global array
+
+                    // Set the actionOccurred flag to true
+                    actionOccurred = true;
+
+                    // Check if "Events" filter is active and update map markers
+                    const isEventFilterChecked = document.querySelector("#filter-events").checked;
+                    if (isEventFilterChecked) {
+                        displayEvents(); // Add new marker without reloading everything
+                    }
+
+                    clearInputFields(); // Clear input fields
                 } else {
-                    console.error("Failed to add event to the database.");
+                    alert("Failed to add event. Please try again.");
                 }
-            })
-            .catch(error => console.error("Error adding event to the database:", error));
-
-            // Add an info window for the marker
-            google.maps.event.addListener(marker, "click", () => {
-                infowindow.setContent(
-                    `<div>
-                        <strong>${eventName}</strong><br>
-                        Location: ${eventLocationInput}<br>
-                        Description: ${eventDescription}
-                    </div>`
-                );
-                infowindow.open(map, marker);
-
-                selectedEventIndex = events.findIndex(event => event.name === eventName);
-                document.getElementById("eventFeedback").style.display = "none";
-            });
-
-            alert("Event added successfully!");
+            } catch (error) {
+                console.error("Error adding event:", error);
+                alert("An error occurred. Please try again.");
+            }
         } else {
-            alert("Failed to find location: " + status);
+            alert("Invalid location. Please try again.");
         }
     });
 }
 
 
-    
-    async function updateEvent() {
-    if (selectedEventIndex === null) {
-        document.getElementById("eventFeedback").style.display = "block";
+async function updateEvent() {
+    const name = document.getElementById("updateEventName").value.trim();
+    const description = document.getElementById("updateEventDescription").value.trim();
+
+    // Find the existing event in the global events array
+    const existingEvent = events.find((event) => event.name === name);
+
+    if (!existingEvent) {
+        alert("Event not found. Please check the event name.");
         return;
     }
 
-    const updatedName = document.getElementById("eventName").value;
-    const updatedDescription = document.getElementById("eventDescription").value;
-    const updatedLat = events[selectedEventIndex].location.lat;
-    const updatedLng = events[selectedEventIndex].location.lng;
-
+    // Prepare the updated event data
     const updatedEvent = {
-        name: updatedName,
-        description: updatedDescription,
-        location: { lat: updatedLat, lng: updatedLng }, // Include lat/lng in the update payload
+        name,
+        description,
+        location: existingEvent.location, // Keep existing location unchanged
     };
 
     try {
-        const response = await fetch(`/api/events/${events[selectedEventIndex].id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+        // Send the update request to the API
+        const response = await fetch(`/api/events/${existingEvent.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedEvent),
         });
 
         if (response.ok) {
             alert("Event updated successfully!");
 
-            // Update the global events array for the selected event
-            events[selectedEventIndex].name = updatedName;
-            events[selectedEventIndex].description = updatedDescription;
+            // Set the actionOccurred flag to true
+            actionOccurred = true;
 
-            // Re-display events without reloading the whole page
-            displayEvents();
+            // Update the event in the global events array
+            existingEvent.description = description;
 
-            selectedEventIndex = null; // Clear the selected index
+            // Check if the "Events" filter is active
+            const isEventFilterChecked = document.querySelector("#filter-events").checked;
+
+            if (isEventFilterChecked) {
+                displayEvents(); // Remove existing markers and display updated events
+            }
+
+            clearInputFields(); // Clear the input fields
         } else {
-            alert("Failed to update event.");
+            throw new Error("Failed to update the event.");
         }
     } catch (error) {
         console.error("Error updating event:", error);
+        alert("Failed to update event. Please try again.");
     }
 }
 
 
-    // function deleteEvent() {
-    //     if (selectedEventIndex === null) {
-    //         document.getElementById("eventFeedback").style.display = "block";
-    //         return;
-    //     }
+async function deleteEvent() {
+    const name = document.getElementById("deleteEventName").value.trim();
 
-    //     events.splice(selectedEventIndex, 1);
-    //     selectedEventIndex = null;
+    // Find the event in the global events array
+    const existingEvent = events.find((event) => event.name === name);
 
-    //     alert("Event deleted successfully!");
-    //     displayEvents();
-    // }
-
-    async function deleteEvent() {
-    if (selectedEventIndex === null) {
-        document.getElementById("eventFeedback").style.display = "block";
+    if (!existingEvent) {
+        alert("Event not found. Please check the event name.");
         return;
     }
 
-    // Get the ID of the selected event
-    const eventId = events[selectedEventIndex].id;
-
     try {
-        // Send DELETE request to the server
-        const response = await fetch(`/api/events/${eventId}`, {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
+        // Send the DELETE request to the API
+        const response = await fetch(`/api/events/${existingEvent.id}`, {
+            method: "DELETE",
         });
 
         if (response.ok) {
             alert("Event deleted successfully!");
 
-            // Remove the event from the global events array
-            events.splice(selectedEventIndex, 1);
-            selectedEventIndex = null;
+            // Set the actionOccurred flag to true
+            actionOccurred = true;
 
-            // Refresh the markers on the map
-            displayEvents();
+            // Remove the event from the global events array
+            events = events.filter((event) => event.id !== existingEvent.id);
+
+            // Refresh markers dynamically
+            const isEventFilterChecked = document.querySelector("#filter-events").checked;
+
+            if (isEventFilterChecked) {
+                displayEvents(); // Redisplay remaining events
+            }
+
+            clearInputFields(); // Clear the input fields
         } else {
-            alert("Failed to delete the event.");
+            alert("Failed to delete event. Please try again.");
         }
     } catch (error) {
         console.error("Error deleting event:", error);
-        alert("An error occurred while deleting the event. Please try again.");
+        alert("An error occurred while deleting the event.");
     }
 }
 
 
-    function displayEvents() {
-    clearMarkers(); // Clear existing markers before displaying new ones
+function displayEvents() {
+    clearMarkers(); // Clear all existing markers
 
+    if (!events.length) {
+        console.warn("No events available to display.");
+        return;
+    }
+
+    const geocoder = new google.maps.Geocoder();
     events.forEach((event, index) => {
-        // Validate the event location
-        if (
-            typeof event.location.lat !== "number" ||
-            typeof event.location.lng !== "number" ||
-            isNaN(event.location.lat) ||
-            isNaN(event.location.lng)
-        ) {
-            console.warn(`Skipping event with invalid location: ${event.name}`);
+        const lat = parseFloat(event.location.lat);
+        const lng = parseFloat(event.location.lng);
+
+        if (isNaN(lat) || isNaN(lng)) {
+            console.warn(`Skipping invalid event location for: ${event.name}`);
             return;
         }
 
         const marker = new google.maps.Marker({
-            position: { lat: event.location.lat, lng: event.location.lng },
+            position: { lat, lng },
             map: map,
             title: event.name,
-            icon: {
-                url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
-            },
+            icon: { url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png" },
         });
 
-        markers.push(marker); // Store the marker for later reference
-
+        markers.push(marker);
         google.maps.event.addListener(marker, "click", () => {
-            infowindow.setContent(
-                `<div>
+            infowindow.setContent(`
+                <div style="color: #3E0101;">
                     <strong>${event.name}</strong><br>
-                    Location: (${event.location.lat}, ${event.location.lng})<br>
-                    Description: ${event.description || "No description available."}
-                </div>`
-            );
+                    Location: (${lat}, ${lng})<br>
+                    Description: ${event.description}
+                </div>
+            `);
             infowindow.open(map, marker);
-
-            // Set form fields with event data
-            selectedEventIndex = index; // Store the selected event index
-            document.getElementById("eventName").value = event.name;
-            document.getElementById("eventLocation").value = ""; // Clear location field
-            document.getElementById("eventDescription").value = event.description;
-            document.getElementById("eventFeedback").style.display = "none";
         });
     });
 }
 
 
- function clearMarkers(filterType = null) {
-    markers = markers.filter(marker => {
-        if (filterType && marker.type !== filterType) {
-            return true; // Keep this marker if it doesn't match the filterType
-        }
-        marker.setMap(null); // Remove the marker from the map
-        return false; // Remove it from the array
+function clearMarkers() {
+    markers.forEach(marker => marker.setMap(null)); // Remove all markers from the map
+    markers = []; // Reset the global markers array
+}
+
+
+function switchTab(tab) {
+    // Reset all tabs to inactive
+    document.getElementById("addTab").classList.remove("active");
+    document.getElementById("updateTab").classList.remove("active");
+    document.getElementById("deleteTab").classList.remove("active");
+
+    // Hide or disable buttons based on the active tab
+    if (tab === "add") {
+        document.getElementById("addTab").classList.add("active");
+        document.getElementById("addEventButton").disabled = false;
+        document.getElementById("updateEventButton").disabled = true;
+        document.getElementById("deleteEventButton").disabled = true;
+
+        // Clear form fields
+        clearInputFields();
+    } else if (tab === "update") {
+        document.getElementById("updateTab").classList.add("active");
+        document.getElementById("addEventButton").disabled = true;
+        document.getElementById("updateEventButton").disabled = false;
+        document.getElementById("deleteEventButton").disabled = true;
+    } else if (tab === "delete") {
+        document.getElementById("deleteTab").classList.add("active");
+        document.getElementById("addEventButton").disabled = true;
+        document.getElementById("updateEventButton").disabled = true;
+        document.getElementById("deleteEventButton").disabled = false;
+    }
+}
+
+
+function clearInputFields() {
+    document.querySelectorAll("input, textarea").forEach((field) => {
+        field.value = "";
     });
 }
+
 
     document.getElementById("addEventButton").addEventListener("click", addEvent);
     document.getElementById("updateEventButton").addEventListener("click", updateEvent);
     document.getElementById("deleteEventButton").addEventListener("click", deleteEvent);
     document.addEventListener("change", (event) => {
-        if (event.target.classList.contains("poi-filter")) {
-            clearMarkers();
-            fetchFilteredPlaces();
+        if (event.target.id === "filter-events") {
+            if (!event.target.checked && actionOccurred) {
+                actionOccurred = false; // Reset the flag
+                location.reload(); // Reload the page
+            } else {
+                debouncedFetchFilteredPlaces(); // Normal behavior
+            }
         }
     });
 
-    document.addEventListener("DOMContentLoaded", initAutocomplete);
+
+    document.addEventListener("DOMContentLoaded", async () => {
+        try {
+            await loadEvents(); // Load events on initial page load
+        } catch (error) {
+            console.error("Failed to load events on page load:", error);
+        }
+    });
+
+   
 </script>
 
 <script async defer

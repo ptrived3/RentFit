@@ -285,3 +285,11 @@ body.dark-mode .card img {
 .table th, .table td {
     border-color: var(--text-color); /* Dynamic border color */
 }
+
+
+button[disabled] {
+    cursor: not-allowed; /* Show "not allowed" cursor for disabled buttons */
+    opacity: 0.5; /* Reduce opacity to visually indicate it's disabled */
+    background-color: #6c757d !important; /* Grey background to make it clear */
+    color: #ffffff; /* Maintain readable text color */
+}
