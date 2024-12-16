@@ -47,6 +47,7 @@
             {% if current_user.is_authenticated %}
             <a class="nav-link" href="{{ url_for('profile') }}">Profile</a>
             <a class="nav-link" href="{{ url_for('places') }}">Places</a>
+            <a class="nav-link" href="{{ url_for('collections') }}">Collections</a>
             <a class="nav-link" href="{{ url_for('games') }}">Play</a>
             <a class="nav-link" href="{{ url_for('logout') }}">Sign out</a>
             {% endif %}

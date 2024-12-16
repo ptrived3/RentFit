@@ -603,3 +603,7 @@ def set_default_pics():
         user.profile_pic = 'images/default.png'
     db.session.commit()
     print(f"Updated {len(users)} users with default profile pictures.")
+
+@app.route('/collections')
+def collections():
+    return render_template('collections.html')
