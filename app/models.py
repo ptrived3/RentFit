@@ -6,7 +6,7 @@ from datetime import datetime
 import base64
 
 db = SQLAlchemy()
-DB_NAME = "social.db"
+DB_NAME = "social.sqlite"
 
 
 class User(UserMixin, db.Model):
