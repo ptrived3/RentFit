@@ -13,15 +13,12 @@
             <!-- Search Form (Visible only if logged in) -->
             {% if current_user.is_authenticated %}
             <!--<a class="navbar-brand" href="{{ url_for('user_dashboard') }}">MySocial</a> -->
-            <a href="{{ url_for('user_dashboard') }}" class="text-decoration-none" style="text-align: center;">
-                <div class="d-flex flex-column align-items-center me-3">
-                    <img src="{{ url_for('static', filename=current_user.profile_pic or 'default.png') }}"
-                         alt="Profile Picture"
-                         title="{{ current_user.username }}"
-                         class="rounded-circle img-fluid"
-                         style="max-width: 50px;">
-                </div>
-            </a>
+            <a href="{{ url_for('user_dashboard') }}" class="text-decoration-none" style="text-align: center; margin-right: 20px;">
+                <img src="{{ url_for('static', filename='logo.png') }}" 
+                     alt="MySocial Logo" 
+                     title="Go to Dashboard"
+                     style="height: 100px; width: auto; cursor: pointer;">
+            </a>            
 
             <div class="position-relative" style="width: 40%; max-width: 500px;">
                 <form class="d-flex" id="search-form">
