@@ -6,7 +6,7 @@ from datetime import datetime
 import base64
 
 db = SQLAlchemy()
-DB_NAME = "social.sqlite"
+DB_NAME = "social.db"
 
 
 class User(UserMixin, db.Model):
@@ -173,3 +173,46 @@ class Event(db.Model):
             f"location=({self.location_lat}, {self.location_lng}), "
             f"description='{self.description[:20] if self.description else 'None'}'>"
         )
+    
+class Category(db.Model):
+    __tablename__ = 'category'
+
+    category_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    category_name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+
+    collections = db.relationship('Collection', backref='category', lazy=True)
+
+    def __repr__(self):
+        return f'<Category {self.category_name}>'
+
+
+class Collection(db.Model):
+    __tablename__ = 'collection'
+
+    collection_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.category_id'), nullable=False)
+    collection_name = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+
+    items = db.relationship('Item', backref='collection', lazy=True)
+
+    def __repr__(self):
+        return f'<Collection {self.collection_name}>'
+
+
+class Item(db.Model):
+    __tablename__ = 'item'
+
+    item_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('category.category_id'), nullable=False)
+    collection_id = db.Column(db.Integer, db.ForeignKey('collection.collection_id'), nullable=False)
+    item_name = db.Column(db.String(255), nullable=False)
+    acquired_date = db.Column(db.DateTime, default=datetime.utcnow)
+    estimated_value = db.Column(db.Numeric, nullable=False)
+    condition = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+
+    def __repr__(self):
+        return f'<Item {self.item_name}>'
