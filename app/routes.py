@@ -598,6 +598,7 @@ def set_default_pics():
     db.session.commit()
     print(f"Updated {len(users)} users with default profile pictures.")
 
+
 @app.route('/collections', methods=['GET'])
 @login_required
 def collections():
@@ -635,6 +636,30 @@ def manage_collections():
         categories=categories
     )
 
+@app.route('/manage_categories', methods=['GET', 'POST'])
+@login_required
+def manage_categories():
+    if request.method == 'POST':
+        # Retrieve form data
+        category_name = request.form.get('category_name')
+        description = request.form.get('description')
+
+        # Create a new ctegory
+        new_category = Category(
+            category_name=category_name,
+            description=description
+        )
+        db.session.add(new_category)
+        db.session.commit()
+        flash('Category added successfully!', 'success')
+        return redirect(url_for('manage_categories'))
+
+    # Fetch user collections and categories for dropdown
+    categories = Category.query.all()
+    return render_template(
+        'manage_categories.html',
+        categories=categories
+    )
 
 @app.route('/manage_items', methods=['GET', 'POST'])
 @login_required

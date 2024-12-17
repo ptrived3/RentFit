@@ -79,6 +79,15 @@ class GameSessionView(MyModelView):
     column_list = ['id', 'player1_id', 'player1.username', 'player2_id', 'player2.username',
                    'player1_joined', 'player2_joined', 'status', 'winner.username']
 
+class CategoryView(MyModelView):
+    can_create = True
+    can_edit = True
+    can_delete = True
+    can_export = True
+
+    column_list = ['category_id', 'category_name', 'description']
+    column_filters = ['category_name']
+
 class SignoutView(BaseView):
     @expose('/')
     def index(self):

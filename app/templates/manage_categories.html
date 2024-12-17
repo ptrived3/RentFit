@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Manage Categories</h1>
+    <form method="POST" action="{{ url_for('manage_categories') }}">
+        <div class="form-group">
+            <label for="category_name">Category Name:</label>
+            <input type="text" id="category_name" name="category_name" class="form-control" required placeholder="Enter category name">
+        </div>
+
+        <div class="form-group">
+            <label for="description">Description:</label>
+            <textarea id="description" name="description" class="form-control" rows="3" required placeholder="Enter a description"></textarea>
+        </div>
+        <div class="mt-2">
+            <button type="submit" class="btn btn-primary">Save Category</button>
+            <a href="{{ url_for('collections') }}" class="btn btn-secondary">Back to Collections</a>
+        </div>
+    </form>
+
+    {% if categories %}
+    <h2 class="mt-4">Categories</h2>
+    <ul class="list-group">
+        {% for category in categories %}
+        <li class="list-group-item">
+            <strong>{{ category.category_name }}</strong> - {{ category.description }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No category to manage yet.</p>
+    {% endif %}
+</div>
+{% endblock %}
