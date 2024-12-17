@@ -138,56 +138,6 @@
 let debounceTimeout;
 
 
-// async function initAutocomplete() {
-//     const defaultLocation = { lat: 37.7749, lng: -122.4194 };
-
-//     // Initialize map
-//     map = new google.maps.Map(document.getElementById("map"), {
-//         center: defaultLocation,
-//         zoom: 12,
-//         mapTypeControl: false,
-//         fullscreenControl: false,
-//         streetViewControl: false
-//     });
-
-//     infowindow = new google.maps.InfoWindow();
-
-//     // Loading Indicator
-//     const loadingIndicator = document.createElement("div");
-//     loadingIndicator.innerText = "Loading events...";
-//     loadingIndicator.style.position = "absolute";
-//     loadingIndicator.style.top = "10px";
-//     loadingIndicator.style.left = "10px";
-//     loadingIndicator.style.padding = "5px 10px";
-//     loadingIndicator.style.backgroundColor = "white";
-//     loadingIndicator.style.zIndex = "1000";
-//     loadingIndicator.style.display = "none";
-//     document.body.appendChild(loadingIndicator);
-
-//     const autocompleteInput = document.getElementById("autocomplete");
-//     const autocomplete = new google.maps.places.Autocomplete(autocompleteInput, {
-//         types: ["geocode"],
-//     });
-
-//     // Debounce "place_changed" listener
-//     autocomplete.addListener("place_changed", () => {
-//         clearTimeout(debounceTimeout);
-//         debounceTimeout = setTimeout(() => handlePlaceChanged(autocomplete), 300);
-//     });
-
-//     // Load events on page load
-//     try {
-//         loadingIndicator.style.display = "block";
-//         await loadEvents();
-//         console.log("Events loaded successfully.");
-//     } catch (error) {
-//         console.error("Error loading events:", error);
-//         alert("Failed to load events. Please refresh the page.");
-//     } finally {
-//         loadingIndicator.style.display = "none";
-//     }
-// }
-
 async function initAutocomplete() {
     const fallbackLocation = { lat: 37.7749, lng: -122.4194 }; // Default location (e.g., San Francisco)
 
@@ -495,7 +445,7 @@ async function deleteEvent() {
                 displayEvents(); // Redisplay remaining events
             }
 
-            clearInputFields(); // Clear the input fields
+            clearInputFields(); 
         } else {
             alert("Failed to delete event. Please try again.");
         }
@@ -515,6 +465,8 @@ function displayEvents() {
     }
 
     const geocoder = new google.maps.Geocoder();
+    const addressCache = {}; // Cache for storing geocoded addresses
+
     events.forEach((event, index) => {
         const lat = parseFloat(event.location.lat);
         const lng = parseFloat(event.location.lng);
@@ -524,24 +476,50 @@ function displayEvents() {
             return;
         }
 
+        const position = { lat, lng };
         const marker = new google.maps.Marker({
-            position: { lat, lng },
+            position,
             map: map,
             title: event.name,
-            icon: { url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png" },
+            icon: { url: "http://maps.google.com/mapfiles/ms/icons/pink-dot.png" },
         });
 
         markers.push(marker);
-        google.maps.event.addListener(marker, "click", () => {
-            infowindow.setContent(`
-                <div style="color: #3E0101;">
-                    <strong>${event.name}</strong><br>
-                    Location: (${lat}, ${lng})<br>
-                    Description: ${event.description}
-                </div>
-            `);
-            infowindow.open(map, marker);
-        });
+
+        // Reverse geocode to get a location name
+        const latLngKey = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+
+        if (addressCache[latLngKey]) {
+            // Use cached address if available
+            setMarkerInfoWindow(marker, event, addressCache[latLngKey]);
+        } else {
+            geocoder.geocode({ location: position }, (results, status) => {
+                let locationName = `(${lat}, ${lng})`; // Default to coordinates
+
+                if (status === "OK" && results[0]) {
+                    locationName = results[0].formatted_address; // Get human-readable address
+                    addressCache[latLngKey] = locationName; // Cache the result
+                } else {
+                    console.warn(`Reverse geocoding failed for (${lat}, ${lng}): ${status}`);
+                }
+
+                setMarkerInfoWindow(marker, event, locationName);
+            });
+        }
+    });
+}
+
+// Helper function to set the marker's info window
+function setMarkerInfoWindow(marker, event, locationName) {
+    google.maps.event.addListener(marker, "click", () => {
+        infowindow.setContent(`
+            <div style="color: #3E0101;">
+                <strong>${event.name}</strong><br>
+                Location: ${locationName}<br>
+                Description: ${event.description || "No description available."}
+            </div>
+        `);
+        infowindow.open(map, marker);
     });
 }
 
@@ -601,7 +579,6 @@ function clearInputFields() {
             }
         }
     });
-
 
     document.addEventListener("DOMContentLoaded", async () => {
         try {
