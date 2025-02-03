@@ -1,4 +1,3 @@
-# CSE108_Project
 
 Features:
 - Social Feed, show updates from user's friends (if we have time, a second feed that shows people local to the user, not necessarily friends)
