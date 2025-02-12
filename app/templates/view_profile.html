@@ -6,8 +6,10 @@
         <div class="col-md-4 text-center">
             <h2>{{ user.username }}'s Profile</h2>
         </div>
+
+        <!-- Follow/Unfollow Button -->
         {% if user.id != current_user.id %}
-            <div class="col-md-8 justify-content-center">
+            <div class="col-md-8 d-flex justify-content-center">
                 <form action="{{ url_for('follow', user_id=user.id) if not is_following else url_for('unfollow', user_id=user.id) }}" method="POST">
                     <button type="submit" class="btn btn-{{ 'danger' if is_following else 'success' }}">
                         {{ 'Unfollow' if is_following else 'Follow' }}
@@ -48,6 +50,29 @@
         </div>
     </div>
 
+    <!-- User's Posts -->
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h3>{{ user.username }}'s Posts</h3>
+            {% if posts %}
+                {% for post in posts %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <p class="card-text">{{ post.text }}</p>
+                            {% if post.image_data %}
+                                <img src="data:{{ post.image_mime_type }};base64,{{ post.image_data | b64encode }}" 
+                                     class="img-fluid mt-2" style="max-width: 300px; height: auto;">
+                            {% endif %}
+                            <p class="text-muted small">Posted on {{ post.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No posts yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
     <!-- Back Button -->
     <div class="row mt-4">
         <div class="col-4"></div>
@@ -55,6 +80,5 @@
             <a href="{{ url_for('user_dashboard') }}" class="btn btn-secondary">Back to Dashboard</a>
         </div>
     </div>
-
 </div>
 {% endblock %}
