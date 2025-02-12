@@ -24,8 +24,7 @@
     <p>No collections found. Start by adding a new collection!</p>
     {% endif %}
 
-
-    <a href="{{ url_for('manage_categories') }}" class="btn btn-primary mt-3">Add New Category</a>
-    <a href="{{ url_for('manage_collections') }}" class="btn btn-primary mt-3">Add New Collection</a>
+    <a href="{{ url_for('manage_categories') }}" class="collections-btn">Saved Items</a>
+    <a href="{{ url_for('manage_collections') }}" class="collections-btn">Add New Collection</a>
 </div>
 {% endblock %}

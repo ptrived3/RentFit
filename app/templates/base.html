@@ -8,7 +8,7 @@
     </head>
 <body>
     <!-- Navbar with Dark/Light Mode Toggle -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <nav class="navbar navbar-expand-lg navbar-dark" >
         <div class="container">
             <!-- Search Form (Visible only if logged in) -->
             {% if current_user.is_authenticated %}
@@ -18,7 +18,7 @@
                      alt="MySocial Logo" 
                      title="Go to Dashboard"
                      style="height: 100px; width: auto; cursor: pointer;">
-            </a>            
+            </a>           
 
             <div class="position-relative" style="width: 40%; max-width: 500px;">
                 <form class="d-flex" id="search-form">
@@ -45,8 +45,8 @@
             <a class="nav-link" href="{{ url_for('profile') }}">Profile</a>
             <a class="nav-link" href="{{ url_for('places') }}">Places</a>
             <a class="nav-link" href="{{ url_for('collections') }}">Collections</a>
-            <a class="nav-link" href="{{ url_for('games') }}">Play</a>
             <a class="nav-link" href="{{ url_for('logout') }}">Sign out</a>
+            
             {% endif %}
             <!-- Help Nav Item -->
             <a class="nav-link" id="help-nav" href="#" data-bs-toggle="modal" data-bs-target="#helpModal">Help</a>
