@@ -142,17 +142,28 @@ def profile():
         flash('Profile updated successfully!', 'success')
         return redirect(url_for('profile'))
 
+    # Fetch posts of the current user
+    user_posts = Post.query.filter_by(user_id=current_user.id).order_by(Post.timestamp.desc()).all()
+
     # Load existing user data on GET
-    return render_template('profile.html', user=current_user)
+    return render_template('profile.html', user=current_user, posts=user_posts)
+
 
 @app.route('/profile/<int:user_id>', methods=['GET'])
 @login_required
 def view_profile(user_id):
     # Query the user by ID
     user = User.query.get_or_404(user_id)
-    is_following = current_user.is_following(user)  # Check if the current user is following this user
+    
+    # Check if the current user is following this user
+    is_following = current_user.is_following(user)
+    
+    # Fetch posts of the viewed user
+    user_posts = Post.query.filter_by(user_id=user.id).order_by(Post.timestamp.desc()).all()
+
     # Render the profile page in view-only mode
-    return render_template('view_profile.html', user=user, is_following=is_following)
+    return render_template('view_profile.html', user=user, is_following=is_following, posts=user_posts)
+
 
 # Route to create a new post
 @app.route('/create_post', methods=['POST'])
