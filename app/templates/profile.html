@@ -12,7 +12,6 @@
         <!-- Profile Information Section -->
         <div class="col-md-8">
             <form method="POST" enctype="multipart/form-data">
-                <!-- Username -->
                 <div class="row align-items-center mb-3">
                     <div class="col-3">
                         <label for="username" class="form-label mb-0">Username</label>
@@ -21,14 +20,8 @@
                         <input type="text" class="form-control editable-field" id="username" name="username"
                                value="{{ user.username }}" readonly>
                     </div>
-                    <div class="col-1 text-end">
-                        <button type="button" class="btn btn-outline-secondary btn-sm edit-btn">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                    </div>
                 </div>
 
-                <!-- Email -->
                 <div class="row align-items-center mb-3">
                     <div class="col-3">
                         <label for="email" class="form-label mb-0">Email</label>
@@ -37,14 +30,8 @@
                         <input type="email" class="form-control editable-field" id="email" name="email"
                                value="{{ user.email }}" readonly>
                     </div>
-                    <div class="col-1 text-end">
-                        <button type="button" class="btn btn-outline-secondary btn-sm edit-btn">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                    </div>
                 </div>
 
-                <!-- Bio -->
                 <div class="row align-items-center mb-3">
                     <div class="col-3">
                         <label for="bio" class="form-label mb-0">Bio</label>
@@ -52,14 +39,8 @@
                     <div class="col-7">
                         <textarea class="form-control editable-field" id="bio" name="bio" rows="3" readonly>{{ user.bio }}</textarea>
                     </div>
-                    <div class="col-1 text-end">
-                        <button type="button" class="btn btn-outline-secondary btn-sm edit-btn">
-                            <i class="bi bi-pencil"></i>
-                        </button>
-                    </div>
                 </div>
 
-                <!-- Profile Picture Upload -->
                 <div class="row mb-3">
                     <div class="col-3">
                         <label for="profile_pic" class="form-label mb-0">Profile Picture</label>
@@ -70,7 +51,7 @@
                 </div>
 
                 <div class="row mt-4">
-                    <div class="col-3"></div> <!-- Empty column to match label alignment -->
+                    <div class="col-3"></div>
                     <div class="col-7">
                         <button type="submit" class="btn btn-primary w-100">Update Profile</button>
                     </div>
@@ -78,7 +59,31 @@
             </form>
         </div>
     </div>
+
+    <!-- Display User Posts -->
+    <div class="row mt-5">
+        <div class="col-md-12">
+            <h3>{{ user.username }}'s Posts</h3>
+            {% if posts %}
+                {% for post in posts %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <p class="card-text">{{ post.text }}</p>
+                            {% if post.image_data %}
+                                <img src="data:{{ post.image_mime_type }};base64,{{ post.image_data | b64encode }}" 
+                                     class="img-fluid mt-2" style="max-width: 150px;">
+                            {% endif %}
+                            <p class="text-muted small">Posted on {{ post.timestamp.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted">No posts yet.</p>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
 
 <script>
     // JavaScript for enabling/disabling edit mode
