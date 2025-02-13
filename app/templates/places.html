@@ -2,7 +2,7 @@
 
 {% block content %}
 <div class="container my-5">
-    <h2 class="text-center">Search for Nearby Places and Manage Events</h2>
+    <h2 class="text-center">Search for Nearby Places and Manage Items</h2>
 
     <!-- Autocomplete Search Input -->
     <div class="input-group my-4">
@@ -24,8 +24,8 @@
             <!-- </div> -->
             <div class="form-check">
                 <input type="checkbox" id="filter-events" value="event" class="form-check-input poi-filter">
-                <label for="filter-events" class="form-check-label">
-                    <i class="bi bi-calendar-event text-primary"></i> Events
+                <label for="filter-items" class="form-check-label">
+                    <i class="bi bi-calendar-event text-primary"></i> Items
                 </label>
             </div>
         </div>
@@ -36,19 +36,21 @@
 
     <!-- Add Event Form with Tabs -->
     <div class="my-4">
-        <h5>Manage Events</h5>
+        <h5>Manage Items</h5>
 
 
         <!-- Tabs -->
         <ul class="nav nav-tabs" id="eventTabs">
             <li class="nav-item">
-                <button class="nav-link active" id="add-tab" data-bs-toggle="tab" data-bs-target="#add-tab-pane" type="button">Add Event</button>
+                <button class="nav-link active" id="add-tab" data-bs-toggle="tab" data-bs-target="#add-tab-pane" type="button">Add Item</button>
             </li>
+
             <li class="nav-item">
-                <button class="nav-link" id="update-tab" data-bs-toggle="tab" data-bs-target="#update-tab-pane" type="button">Update Event</button>
+                <button class="nav-link" id="update-tab" data-bs-toggle="tab" data-bs-target="#update-tab-pane" type="button">Update Item</button>
             </li>
+
             <li class="nav-item">
-                <button class="nav-link" id="delete-tab" data-bs-toggle="tab" data-bs-target="#delete-tab-pane" type="button">Delete Event</button>
+                <button class="nav-link" id="delete-tab" data-bs-toggle="tab" data-bs-target="#delete-tab-pane" type="button">Delete Item</button>
             </li>
         </ul>
 
@@ -58,12 +60,13 @@
             <div class="tab-pane fade show active" id="add-tab-pane">
                 <form>
                     <label>Event Name</label>
-                    <input type="text" id="addEventName" class="form-control mb-2">
+                    <input type="text" id="addItemName" class="form-control mb-2">
                     <label>Event Location</label>
-                    <input type="text" id="addEventLocation" class="form-control mb-2">
+                    <input type="text" id="addItemLocation" class="form-control mb-2">
                     <label>Event Description</label>
-                    <textarea id="addEventDescription" class="form-control mb-2"></textarea>
-                    <button type="button" id="addEventButton" class="btn btn-primary">Add Event</button>
+                    <textarea id="addItemDescription" class="form-control mb-2"></textarea>
+                    <button type="button" id="addItemButton" class="btn btn-primary">Add Item</button>
+
                 </form>
             </div>
 
@@ -120,13 +123,13 @@
         clearMarkers();
 
         // Handle events if "Events" filter is checked
-        if (selectedFilters.includes("event")) {
+        if (selectedFilters.includes("item")) {
             try {
                 // Reload events only if they haven't been loaded yet
                 if (events.length === 0) {
-                    await loadEvents();
+                    await loadItems();
                 }
-                displayEvents(); // Display events from the current global `events` array
+                loadItems(); // Display events from the current global `events` array
             } catch (error) {
                 console.error("Error loading events:", error);
                 alert("Failed to load events. Please try again.");
@@ -296,9 +299,13 @@ let actionOccurred = false; // Global flag
 
 
 async function addEvent() {
-    const name = document.getElementById("addEventName").value.trim();
-    const location = document.getElementById("addEventLocation").value.trim();
-    const description = document.getElementById("addEventDescription").value.trim();
+    // const name = document.getElementById("addEventName").value.trim();
+    // const location = document.getElementById("addEventLocation").value.trim();
+    // const description = document.getElementById("addEventDescription").value.trim();
+    const name = document.getElementById("addItemName").value.trim();
+    const location = document.getElementById("addItemLocation").value.trim();
+    const description = document.getElementById("addItemDescription").value.trim();
+
 
     if (!name || !location || !description) {
         alert("All fields are required for adding an event.");
